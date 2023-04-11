@@ -52,15 +52,18 @@ impl A {
     }
 }
 #[repr(C)]
+pub struct B__bindgen_vtable(::std::os::raw::c_void);
+#[repr(C)]
 #[derive(Debug)]
 pub struct B {
-    pub _base: A,
+    pub vtable_: *const B__bindgen_vtable,
+    pub __bindgen_padding_0: u64,
 }
 #[test]
 fn bindgen_test_layout_B() {
     assert_eq!(
         ::std::mem::size_of::<B>(),
-        8usize,
+        16usize,
         concat!("Size of: ", stringify!(B))
     );
     assert_eq!(
@@ -96,4 +99,165 @@ impl B {
     pub unsafe fn destruct(&mut self) {
         B_B_destructor(self)
     }
+}
+#[repr(C)]
+#[derive(Debug)]
+pub struct C {
+    pub _base_1: B,
+}
+#[test]
+fn bindgen_test_layout_C() {
+    assert_eq!(
+        ::std::mem::size_of::<C>(),
+        16usize,
+        concat!("Size of: ", stringify!(C))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<C>(),
+        8usize,
+        concat!("Alignment of ", stringify!(C))
+    );
+}
+extern "C" {
+    #[link_name = "\u{1}_ZN1C4funcEv"]
+    pub fn C_func(this: *mut C);
+}
+extern "C" {
+    #[link_name = "\u{1}_ZN1CC1Ei"]
+    pub fn C_C(this: *mut C, size: ::std::os::raw::c_int);
+}
+extern "C" {
+    #[link_name = "\u{1}_ZN1CD1Ev"]
+    pub fn C_C_destructor(this: *mut C);
+}
+impl C {
+    #[inline]
+    pub unsafe fn func(&mut self) {
+        C_func(self)
+    }
+    #[inline]
+    pub unsafe fn new(size: ::std::os::raw::c_int) -> Self {
+        let mut __bindgen_tmp = ::std::mem::MaybeUninit::uninit();
+        C_C(__bindgen_tmp.as_mut_ptr(), size);
+        __bindgen_tmp.assume_init()
+    }
+    #[inline]
+    pub unsafe fn destruct(&mut self) {
+        C_C_destructor(self)
+    }
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct S {
+    pub a: ::std::os::raw::c_char,
+    pub b: ::std::os::raw::c_int,
+    pub c: ::std::os::raw::c_char,
+}
+#[test]
+fn bindgen_test_layout_S() {
+    assert_eq!(
+        ::std::mem::size_of::<S>(),
+        12usize,
+        concat!("Size of: ", stringify!(S))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<S>(),
+        4usize,
+        concat!("Alignment of ", stringify!(S))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<S>())).a as *const _ as usize },
+        0usize,
+        concat!("Offset of field: ", stringify!(S), "::", stringify!(a))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<S>())).b as *const _ as usize },
+        4usize,
+        concat!("Offset of field: ", stringify!(S), "::", stringify!(b))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<S>())).c as *const _ as usize },
+        8usize,
+        concat!("Offset of field: ", stringify!(S), "::", stringify!(c))
+    );
+}
+extern "C" {
+    #[link_name = "\u{1}_Z4getSv"]
+    pub fn getS() -> S;
+}
+extern "C" {
+    #[link_name = "\u{1}_Z8overloadi"]
+    pub fn overload(a: ::std::os::raw::c_int);
+}
+extern "C" {
+    #[link_name = "\u{1}_Z8overloadii"]
+    pub fn overload1(a: ::std::os::raw::c_int, b: ::std::os::raw::c_int);
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ostrstream {
+    pub ptr: *mut ::std::os::raw::c_void,
+    pub _M_buf: ::std::os::raw::c_int,
+}
+#[test]
+fn bindgen_test_layout_ostrstream() {
+    assert_eq!(
+        ::std::mem::size_of::<ostrstream>(),
+        16usize,
+        concat!("Size of: ", stringify!(ostrstream))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ostrstream>(),
+        8usize,
+        concat!("Alignment of ", stringify!(ostrstream))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<ostrstream>())).ptr as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ostrstream),
+            "::",
+            stringify!(ptr)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<ostrstream>()))._M_buf as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ostrstream),
+            "::",
+            stringify!(_M_buf)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct LogStream {
+    pub _base: ostrstream,
+    pub ctr_: ::std::os::raw::c_int,
+}
+#[test]
+fn bindgen_test_layout_LogStream() {
+    assert_eq!(
+        ::std::mem::size_of::<LogStream>(),
+        16usize,
+        concat!("Size of: ", stringify!(LogStream))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<LogStream>(),
+        8usize,
+        concat!("Alignment of ", stringify!(LogStream))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<LogStream>())).ctr_ as *const _ as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(LogStream),
+            "::",
+            stringify!(ctr_)
+        )
+    );
 }
