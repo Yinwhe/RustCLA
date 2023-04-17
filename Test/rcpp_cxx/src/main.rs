@@ -17,7 +17,6 @@ mod ffi {
         fn getCHello(data: &CxxString) -> UniquePtr<CHello>;
         fn hello(&self);
         fn setData(self: Pin<&mut CHello>, data: &CxxString);
-        fn testRHello(&self);
     }
 }
 

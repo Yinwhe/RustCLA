@@ -152,7 +152,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "issue"
+name = "issue2"
 version = "0.1.0"
 dependencies = [
  "bindgen",

@@ -27,8 +27,11 @@ fn main() {
     let bindings = bindgen::Builder::default()
         .clang_arg("-std=c++11")
         // whitelist
-        // .whitelist_type("A")
-        // .whitelist_type("B")
+        .whitelist_type("Foo")
+        .whitelist_type("Bar")
+        .whitelist_function("MakeFoo")
+        .whitelist_function("MakeBar")
+        // .whitelist_type("MyString")
         
         // The input header we would like to generate
         // bindings for.
