@@ -7,7 +7,6 @@ include!("../bindings.rs");
 fn main() {
     unsafe {
         let b = B::new();
-        b.say_hello();
         println!("{:?}", b);
     }
 }

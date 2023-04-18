@@ -7,6 +7,7 @@ mod ffi {
 
         fn getRHello(data: String) -> Box<RHello>;
         fn hello(&self);
+        fn setData(&mut self, data: String);
     }
 
     unsafe extern "C++" {
@@ -17,6 +18,7 @@ mod ffi {
         fn getCHello(data: &CxxString) -> UniquePtr<CHello>;
         fn hello(&self);
         fn setData(self: Pin<&mut CHello>, data: &CxxString);
+        fn testRHello(&self);
     }
 }
 
@@ -32,6 +34,10 @@ impl RHello {
     pub fn hello(&self) {
         println!("Hello from Rust! My data is {}!", self.data);
     }
+
+    pub fn setData(&mut self, data: String) {
+        self.data = data;
+    }
 }
 
 fn getRHello(data: String) -> Box<RHello> {
@@ -42,11 +48,12 @@ fn main() {
     {
         let_cxx_string!(data = "CHelloName");
         let mut h = ffi::getCHello(&data);
-        h.hello();
+        h.testRHello();
+        // h.hello();
 
-        let_cxx_string!(data = "CHelloNameAgain");
-        h.as_mut().unwrap().setData(&data);
-        h.hello();
+        // let_cxx_string!(data = "CHelloNameAgain");
+        // h.as_mut().unwrap().setData(&data);
+        // h.hello();
     }
     // drop h
 }

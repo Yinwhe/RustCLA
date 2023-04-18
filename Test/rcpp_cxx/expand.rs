@@ -3,7 +3,7 @@
 use std::prelude::rust_2021::*;
 #[macro_use]
 extern crate std;
-use cxx::{CxxString, let_cxx_string};
+use cxx::let_cxx_string;
 #[deny(improper_ctypes, improper_ctypes_definitions)]
 #[allow(clippy::unknown_clippy_lints)]
 #[allow(
@@ -42,6 +42,27 @@ mod ffi {
                 fn __hello(_: &CHello);
             }
             unsafe { __hello(self) }
+        }
+    }
+    impl CHello {
+        pub fn setData(self: ::cxx::core::pin::Pin<&mut Self>, data: &::cxx::CxxString) {
+            extern "C" {
+                #[link_name = "cxxbridge1$CHello$setData"]
+                fn __setData(
+                    _: ::cxx::core::pin::Pin<&mut CHello>,
+                    data: &::cxx::CxxString,
+                );
+            }
+            unsafe { __setData(self, data) }
+        }
+    }
+    impl CHello {
+        pub fn testRHello(&self) {
+            extern "C" {
+                #[link_name = "cxxbridge1$CHello$testRHello"]
+                fn __testRHello(_: &CHello);
+            }
+            unsafe { __testRHello(self) }
         }
     }
     unsafe impl ::cxx::private::UniquePtrTarget for CHello {
@@ -172,6 +193,27 @@ mod ffi {
             }
             ::cxx::private::prevent_unwind(__fn, move || __RHello__hello(__self))
         }
+        #[doc(hidden)]
+        #[export_name = "cxxbridge1$RHello$setData"]
+        unsafe extern "C" fn __RHello__setData(
+            __self: &mut RHello,
+            data: *mut ::cxx::private::RustString,
+        ) {
+            let __fn = "rcpp_cxx::ffi::RHello::setData";
+            fn __RHello__setData(
+                __self: &mut RHello,
+                data: ::cxx::alloc::string::String,
+            ) {
+                RHello::setData(__self, data)
+            }
+            ::cxx::private::prevent_unwind(
+                __fn,
+                move || __RHello__setData(
+                    __self,
+                    ::cxx::core::mem::take((*data).as_mut_string()),
+                ),
+            )
+        }
         let _: fn() = {
             trait __AmbiguousIfImpl<A> {
                 fn infer() {}
@@ -233,16 +275,21 @@ impl RHello {
             );
         };
     }
+    pub fn setData(&mut self, data: String) {
+        self.data = data;
+    }
 }
 fn getRHello(data: String) -> Box<RHello> {
     Box::new(RHello::new(data))
 }
 fn main() {
-    let mut cxx_stack_string = ::cxx::private::StackString::new();
-    #[allow(unused_mut, unused_unsafe)]
-    let mut data = match "CHelloName" {
-        let_cxx_string => unsafe { cxx_stack_string.init(let_cxx_string) }
-    };
-    let h = ffi::getCHello(&data);
-    h.hello();
+    {
+        let mut cxx_stack_string = ::cxx::private::StackString::new();
+        #[allow(unused_mut, unused_unsafe)]
+        let mut data = match "CHelloName" {
+            let_cxx_string => unsafe { cxx_stack_string.init(let_cxx_string) }
+        };
+        let mut h = ffi::getCHello(&data);
+        h.testRHello();
+    }
 }

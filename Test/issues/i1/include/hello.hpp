@@ -4,7 +4,7 @@ class A
 {
 public:
     A();
-    virtual void say_hello() const;
+    void say_hello() const;
     
 private:
     void *ptr;
@@ -15,7 +15,7 @@ class B : A
 {
 public:
     B();
-    virtual void say_hello() const;
+    void say_hello() const;
 
 private:
     int _m_val;

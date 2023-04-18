@@ -17,8 +17,20 @@ void CHello::setData(const std::string &data) {
 void CHello::testRHello() const {
     rust::box<RHello> rh = getRHello(rust::String("RHelloName"));
     rh->hello();
+    rh->setData(rust::String("RHelloNameAgain"));
+    rh->hello();
 }
 
 std::unique_ptr<CHello> getCHello(const std::string &data) {
     return std::make_unique<CHello>(data);
 }
+
+// CHello_hello(this: ptr)
+/*
+    pub struct Chello{};
+    impl {
+        fn hello(&self) {
+            #link CHello_hello(self as ptr)
+        }
+    }
+*/
