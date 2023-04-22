@@ -1,5 +1,5 @@
 [package]
-name = "rcpp"
+name = "issue1s"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,5 +9,5 @@ edition = "2021"
 
 
 [build-dependencies]
-bindgen = { path = "/home/ubuntu/Desktop/RustCLA/Refs/rust-bindgen/bindgen"}
+bindgen = "0.53.1"
 cc = "1.0.79"

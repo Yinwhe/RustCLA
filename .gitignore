@@ -1,2 +1,2 @@
-Test/issues
-Test/learn_llvm
+Test/*
+Refs/*
