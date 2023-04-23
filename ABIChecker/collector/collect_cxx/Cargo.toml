@@ -6,4 +6,4 @@ edition = "2021"
 
 
 [dependencies]
-bindgen_cxx_parser = { path = "./bindgen" }
+bindgen_cxx_parser = { path = "../../modified_deps/bindgen" }
