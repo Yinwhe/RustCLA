@@ -1,8 +1,8 @@
 use bindgen_cxx_parser::BindgenError;
 
 pub struct CInfo{
-    structs: Vec<CStruct>,
-    funcs: Vec<CFunction>
+    pub structs: Vec<CStruct>,
+    pub funcs: Vec<CFunction>
 }
 
 pub struct CStruct {

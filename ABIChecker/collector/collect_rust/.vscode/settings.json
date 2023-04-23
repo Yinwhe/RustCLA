@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.c": "c",
-        "string": "cpp"
+        "new": "cpp",
+        "cstdlib": "cpp"
     }
 }

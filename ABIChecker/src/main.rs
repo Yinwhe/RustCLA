@@ -44,9 +44,58 @@ fn main() {
 
 */
 
+
 extern crate inkwell;
-extern crate bindgen_cxx_parser;
+
+mod analysis;
 
 fn main() {
-    let a = 1;
+    test()
+}
+
+fn test() {
+    use inkwell::{context::Context, module::Module, targets::*, OptimizationLevel};
+    use crate::analysis::struct_layout_analysis;
+        // For test
+        let rust_cx = Context::create();
+        let rust_m =
+            Module::parse_bitcode_from_path("tests/i1/rust.bc", &rust_cx).expect("Parse bitcode fails");
+    
+        let cpp_cx: Context = Context::create();
+        let cpp_m =
+            Module::parse_bitcode_from_path("tests/i1/cpp.bc", &cpp_cx).expect("Parse bitcode fails");
+    
+        Target::initialize_native(&InitializationConfig::default())
+            .expect("Could not initialize native target");
+    
+        let triple = TargetMachine::get_default_triple();
+        let cpu = TargetMachine::get_host_cpu_name().to_string();
+        let features = TargetMachine::get_host_cpu_features().to_string();
+    
+        let target = Target::from_triple(&triple).expect("Could not create target from triple");
+        let target_machine = target
+            .create_target_machine(
+                &triple,
+                &cpu,
+                &features,
+                OptimizationLevel::None,
+                RelocMode::Default,
+                CodeModel::Default,
+            )
+            .expect("Could not create target machine");
+    
+        let target_data = target_machine.get_target_data();
+    
+        let rust_b = rust_m.get_struct_type("B").unwrap();
+        let cpp_b = cpp_m.get_struct_type("class.B").unwrap();
+
+        // for i in 0..rust_b.count_fields() {
+        //     println!("{:?}", target_data.offset_of_element(&rust_b, i));
+        // }
+
+        // for i in 0..cpp_b.count_fields() {
+        //     println!("{:?}", target_data.offset_of_element(&cpp_b, i));
+        // }
+
+        struct_layout_analysis(rust_b, cpp_b, target_data);
 }

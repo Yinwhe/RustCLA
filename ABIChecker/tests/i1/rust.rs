@@ -6,29 +6,7 @@ pub struct A {
     pub ptr: *mut ::std::os::raw::c_void,
     pub _m_buf: ::std::os::raw::c_int,
 }
-#[test]
-fn bindgen_test_layout_A() {
-    assert_eq!(
-        ::std::mem::size_of::<A>(),
-        16usize,
-        concat!("Size of: ", stringify!(A))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<A>(),
-        8usize,
-        concat!("Alignment of ", stringify!(A))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<A>())).ptr as *const _ as usize },
-        0usize,
-        concat!("Offset of field: ", stringify!(A), "::", stringify!(ptr))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<A>()))._m_buf as *const _ as usize },
-        8usize,
-        concat!("Offset of field: ", stringify!(A), "::", stringify!(_m_buf))
-    );
-}
+
 extern "C" {
     #[link_name = "\u{1}_ZNK1A9say_helloEv"]
     pub fn A_say_hello(this: *const A);
@@ -50,29 +28,12 @@ impl A {
     }
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct B {
     pub _base: A,
     pub _m_val: ::std::os::raw::c_int,
 }
-#[test]
-fn bindgen_test_layout_B() {
-    assert_eq!(
-        ::std::mem::size_of::<B>(),
-        16usize,
-        concat!("Size of: ", stringify!(B))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<B>(),
-        8usize,
-        concat!("Alignment of ", stringify!(B))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<B>()))._m_val as *const _ as usize },
-        12usize,
-        concat!("Offset of field: ", stringify!(B), "::", stringify!(_m_val))
-    );
-}
+
 extern "C" {
     #[link_name = "\u{1}_ZNK1B9say_helloEv"]
     pub fn B_say_hello(this: *const B);
@@ -93,3 +54,12 @@ impl B {
         __bindgen_tmp.assume_init()
     }
 }
+
+// pub struct A {
+//     pub id: i32,
+//     pub data: [i64; 10]
+// }
+
+// fn main() {
+//     let a = A { id: 1, data: [0; 10] };
+// }
