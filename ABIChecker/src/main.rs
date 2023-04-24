@@ -47,6 +47,7 @@ fn main() {
 
 extern crate inkwell;
 
+mod analysis_types;
 mod analysis;
 
 fn main() {
@@ -88,14 +89,6 @@ fn test() {
     
         let rust_b = rust_m.get_struct_type("B").unwrap();
         let cpp_b = cpp_m.get_struct_type("class.B").unwrap();
-
-        // for i in 0..rust_b.count_fields() {
-        //     println!("{:?}", target_data.offset_of_element(&rust_b, i));
-        // }
-
-        // for i in 0..cpp_b.count_fields() {
-        //     println!("{:?}", target_data.offset_of_element(&cpp_b, i));
-        // }
 
         struct_layout_analysis(rust_b, cpp_b, target_data);
 }
