@@ -913,7 +913,7 @@ If you encounter an error missing from this list, please file an issue or a PR!"
     }
 
     /// Collect all of our unresolved type references and resolve them.
-    fn resolve_typerefs(&mut self) {
+    pub fn resolve_typerefs(&mut self) {
         let _t = self.timer("resolve_typerefs");
 
         let typerefs = self.collect_typerefs();

@@ -31,8 +31,13 @@ pub fn analysis_struct(rm: Module, cm: Module, rinfo: RInfo, cinfo: CInfo) {
         cpp_struct.insert(cs.name, s);
     }
 }
+
 /// Three parts: align, size, type
-pub fn struct_layout_analysis(rstruct: StructType, cstruct: StructType, target_data: TargetData) {
+pub fn struct_layout_analysis<'ctx>(
+    rstruct: StructType<'ctx>,
+    cstruct: StructType<'ctx>,
+    target_data: TargetData,
+) -> AnalysisResult<'ctx> {
     println!("Debug:\nrstruct: {:?}\n cstruct: {:?}\n", rstruct, cstruct);
     enum AnalysisStatus {
         Match,
@@ -44,6 +49,11 @@ pub fn struct_layout_analysis(rstruct: StructType, cstruct: StructType, target_d
 
     let rstruct = AnalysisStruct::from_ctx(rstruct, &target_data);
     let cstruct = AnalysisStruct::from_ctx(cstruct, &target_data);
+
+    // Check align first
+    if rstruct.get_alignment() != cstruct.get_alignment() {
+        panic!("mismatch")
+    }
 
     let mut matches = Vec::new();
 
@@ -59,6 +69,7 @@ pub fn struct_layout_analysis(rstruct: StructType, cstruct: StructType, target_d
     let mut processed_total_size = 0;
     let mut accumulate = 0;
 
+    // Check size
     while r_process.is_some() && c_process.is_some() {
         let (rf, cf) = (r_process.unwrap(), c_process.unwrap());
         let (rf_size, cf_size) = (rf.get_size(), cf.get_size());
@@ -187,6 +198,12 @@ pub fn struct_layout_analysis(rstruct: StructType, cstruct: StructType, target_d
         r_remain, c_remain
     );
 
-    // Now we can do type checks
+    // TODO: What shall we do about unmatched fields?
 
+    // Now we can do type checks
+    while let Some((mut rm, mut cm)) = matches.pop() {
+        
+    }
+
+    unimplemented!()
 }

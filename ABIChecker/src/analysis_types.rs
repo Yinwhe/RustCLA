@@ -8,6 +8,7 @@ use inkwell::{
 #[derive(Debug)]
 pub struct AnalysisStruct<'ctx> {
     fields: Vec<AnalysisField<'ctx>>,
+    alignment: u32,
 }
 
 #[derive(Clone)]
@@ -20,6 +21,7 @@ pub struct AnalysisField<'ctx> {
 impl<'ctx> AnalysisStruct<'ctx> {
     pub fn from_ctx(st: StructType<'ctx>, target_data: &TargetData) -> Self {
         let mut fields = Vec::new();
+        let alignment = target_data.get_abi_alignment(&st);
 
         for (index, ty) in st.get_field_types().into_iter().enumerate() {
             let id = Self::get_type_id(&ty);
@@ -34,11 +36,15 @@ impl<'ctx> AnalysisStruct<'ctx> {
                 _inner: ty,
             });
         }
-        Self { fields }
+        Self { fields, alignment }
     }
 
     pub fn get_fields_iters(self) -> impl Iterator<Item = AnalysisField<'ctx>> {
         self.fields.into_iter()
+    }
+
+    pub fn get_alignment(&self) -> u32 {
+        self.alignment
     }
 
     fn get_type_id(ty: &BasicTypeEnum) -> u32 {
@@ -76,4 +82,38 @@ impl AnalysisField<'_> {
     pub fn get_size(&self) -> u32 {
         self.range.1 - self.range.0
     }
+
+    pub fn get_type_id(&self) -> u32 {
+        self.type_id
+    }
+
+    pub fn can_be_anytype(&self) -> bool {
+        // We assume padding and opaque types
+        // can be any types.
+        self._inner.is_array_type()
+    }
+
+    pub fn type_match(a: &AnalysisField<'_>, b: &AnalysisField<'_>) -> bool {
+        if a.get_type_id() == b.get_type_id() {
+            true
+        } else {
+            if a.can_be_anytype() || b.can_be_anytype() {
+                true
+            } else {
+                false
+            }
+        }
+    }
+}
+
+pub enum AnalysisResult<'ctx> {
+    Ok,
+    Warn((AnalysisStruct<'ctx>, AnalysisStruct<'ctx>), Vec<AnalysisResultContent>),
+    Error(),
+}
+
+pub struct AnalysisResultContent {
+    a_loc: u32,
+    b_loc: u32,
+    cont: String
 }

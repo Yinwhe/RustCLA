@@ -415,7 +415,7 @@ impl FieldMethods for Bitfield {
 /// yet (which would involve allocating it into a bitfield unit if it is a
 /// bitfield).
 #[derive(Debug)]
-struct RawField(FieldData);
+pub struct RawField(FieldData);
 
 impl RawField {
     /// Construct a new `RawField`.
@@ -1117,6 +1117,16 @@ impl CompInfo {
             CompFields::Before(..) => {
                 panic!("Should always have computed bitfield units first");
             }
+        }
+    }
+
+    pub fn raw_fields(&self) -> &[RawField] {
+        match self.fields {
+            CompFields::Error => &[],
+            CompFields::After { ref fields, .. } => {
+                panic!("Raw field computed already.");
+            }
+            CompFields::Before(ref raw_fields) => raw_fields,
         }
     }
 
