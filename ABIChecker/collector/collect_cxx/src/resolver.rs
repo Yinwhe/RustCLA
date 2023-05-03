@@ -7,6 +7,7 @@ use bindgen_cxx_parser::{
     ty::{Type, TypeKind},
     BindgenError,
 };
+use log::{warn, debug};
 
 use crate::{
     types::{CInfo, CollectError},
@@ -62,6 +63,7 @@ impl Resolver {
                                 );
                             } else {
                                 // TODO
+                                warn!("Alias resolve fails: {:?}", ty);
                             }
                         }
                         TypeKind::Comp(st) => {
@@ -71,30 +73,59 @@ impl Resolver {
                                     self.structs.insert(name.to_owned(), cstruct);
                                 } else {
                                     // TODO
+                                    warn!("Struct resolve fails: {:?}", ty)
                                 }
                             }
                             // else is anonymous struct, shall not be exported
                         }
                         // TypeKind::Enum(e) => {
+                        // println!("Enum {:#?}", e);
                         // }
-                        TypeKind::Opaque => {}
-                        TypeKind::Function(_f) => {
+                        TypeKind::Opaque => {
                             unreachable!("what is this?")
                         }
+                        // TypeKind::Function(f) => {
+                        //     println!("Function 1 {:#?}", f);
+                        //     unreachable!("what is this?")
+                        // }
                         _ => continue,
                     }
                 }
                 ItemKind::Function(func) => {
-                    // println!("Function: {:#?}", func);
+                    // println!("Function 2 {:#?}", func);
+                    if !top_ids.contains(&item.parent_id()) {
+                        // Non-top items shall not be parsed here
+                        continue;
+                    }
+                    let name = func.name().to_owned();
+                    let mut cfunc = CFunction {
+                        name,
+                        args: Vec::new(),
+                        ret: None,
+                    };
+                    if let Some((args, ret)) = self.resolve_function(func.signature()) {
+                        cfunc.args = args;
+                        cfunc.ret = ret;
+                        self.funcs.insert(cfunc.name.clone(), cfunc);
+                    } else {
+                        // TODO
+                        warn!("Function resolve fails: {:?}", func);
+                    }
                 }
+
                 ItemKind::Var(_var) => continue, // skip global vars
             }
         }
 
-        println!("{:#?}", self.typedefs);
-        println!("{:#?}", self.structs);
-        println!("{:#?}", self.funcs);
-        unimplemented!()
+        debug!("{:#?}", self.typedefs);
+        debug!("{:#?}", self.structs);
+        debug!("{:#?}", self.funcs);
+
+        Ok(CInfo {
+            structs: self.structs.drain().map(|(_k, v)| v).collect(),
+            funcs: self.funcs.drain().map(|(_k, v)| v).collect(),
+            typedefs: self.typedefs.drain().map(|(_k, v)| v).collect(),
+        })
     }
 
     fn resolve_alias(&self, alias: &TypeId) -> Option<CType> {
@@ -121,6 +152,8 @@ impl Resolver {
             TypeKind::Reference(_) => Some(CType::PointerType),
             TypeKind::Vector(_, _) => Some(CType::VecTorType),
             TypeKind::Alias(alias) => self.resolve_alias(alias),
+            // Currently we assume c enum as integer
+            TypeKind::Enum(_) => Some(CType::IntType),
             TypeKind::ResolvedTypeRef(ty) => {
                 let ty = self.ctx.resolve_type(ty.clone());
                 self.resolve_btype_to_ctype(ty)
@@ -154,12 +187,39 @@ impl Resolver {
             is_union,
         })
     }
+
+    fn resolve_function(&self, fsig: TypeId) -> Option<(Vec<CField>, Option<CField>)> {
+        let fsig = self.ctx.resolve_type(fsig);
+        if let TypeKind::Function(fsig) = fsig.kind() {
+            let mut args = Vec::new();
+            // resolve arguments
+            for (name, ty) in fsig.argument_types() {
+                let ty = self.ctx.resolve_type(ty.clone());
+                let ctype = self.resolve_btype_to_ctype(&ty)?;
+
+                args.push(CField {
+                    name: name.to_owned(),
+                    ty: ctype,
+                });
+            }
+
+            let ret = {
+                let ty = self.ctx.resolve_type(fsig.return_type());
+                if ty.is_void() {
+                    None
+                } else {
+                    let ty = self.resolve_btype_to_ctype(ty)?;
+                    Some(CField { name: None, ty: ty })
+                }
+            };
+
+            Some((args, ret))
+        } else {
+            None
+        }
+    }
 }
 
-#[allow(unused)]
-pub fn parse(files: &[&str], clang_args: &[&str]) -> Result<CInfo, CollectError> {
-    unimplemented!()
-}
 
 /// Use `bindgen` parser to parse cxx codes
 fn bindgen_parse_one(file: &str, clang_args: &[&str]) -> Result<BindgenContext, BindgenError> {

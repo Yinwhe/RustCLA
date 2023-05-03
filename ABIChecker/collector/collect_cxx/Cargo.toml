@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 bindgen_cxx_parser = { path = "../../modified_deps/bindgen" }
+log = "0.4.17"

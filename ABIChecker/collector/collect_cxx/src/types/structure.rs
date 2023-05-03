@@ -24,7 +24,7 @@ pub struct CField {
     pub ty: CType,
 }
 
-/// Infact we do not support enum check
+/// Infact we do not support enum check, currently we just treat it as integer
 pub struct CEnum {
     pub name: Option<String>,
 }

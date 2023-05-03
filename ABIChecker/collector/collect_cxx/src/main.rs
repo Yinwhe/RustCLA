@@ -1,6 +1,6 @@
-use collect_cxx::Resolver;
+use collect_cxx::parse;
 
 fn main() {
-    let mut resolver = Resolver::new("tests/struct.cc", &["-x", "c++", "-std=c++11"]).unwrap();
-    resolver.resolve_bindgen_one();
+    let res = parse("tests/typedef.h", None, None);
+    print!("{:#?}", res)
 }

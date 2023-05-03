@@ -12,8 +12,18 @@ pub use typedef::*;
 pub struct CInfo {
     pub structs: Vec<CStruct>,
     pub funcs: Vec<CFunction>,
-    pub opaques: i32,           // temp
+    // pub opaques: i32,           // temp
     pub typedefs: Vec<TypeDef>,
+}
+
+impl CInfo {
+    pub fn empty () -> Self {
+        Self {
+            structs: Vec::new(),
+            funcs: Vec::new(),
+            typedefs: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug)]

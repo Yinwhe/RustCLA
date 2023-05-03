@@ -10,3 +10,5 @@ enum foo {
 struct bar {
   enum foo member;
 };
+
+void root(foo f, bar b){}
