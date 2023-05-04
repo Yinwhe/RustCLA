@@ -49,6 +49,10 @@ sort_by = "Name" # default for `fn.sort_by` and `const.sort_by`
 usize_is_size_t = true
 
 
+[layout]
+packed = "__attribute__ ((packed))"
+aligned_n = "__attribute__ ((aligned(n)))"
+
 
 [defines]
 # "target_os = freebsd" = "DEFINE_FREEBSD"
@@ -57,7 +61,7 @@ usize_is_size_t = true
 
 
 [export]
-include = []
+include = ["M"]
 exclude = []
 # prefix = "CAPI_"
 item_types = []
