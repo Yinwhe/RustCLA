@@ -53,3 +53,16 @@ pub enum CType {
     StructType(CStruct),
     VecTorType,
 }
+
+impl CType {
+    pub fn get_type_id(&self) -> u32 {
+        match self {
+            CType::ArrayType => 0,
+            CType::FloatType => 1,
+            CType::IntType => 2,
+            CType::PointerType => 3,
+            CType::StructType(_) => 4,
+            CType::VecTorType => 5,
+        }
+    }
+}

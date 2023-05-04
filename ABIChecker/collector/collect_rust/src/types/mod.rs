@@ -10,7 +10,7 @@ pub use typedef::*;
 
 #[derive(Debug)]
 pub struct RInfo {
-    pub structs: Vec<RStruct>,
+    pub structs: Vec<RStructType>,
     pub funcs: Vec<RFunction>,
     // pub opaques: i32,           // temp
     pub typedefs: Vec<TypeDef>,

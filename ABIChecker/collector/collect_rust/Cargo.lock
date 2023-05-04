@@ -83,6 +83,7 @@ name = "collect_rust"
 version = "0.1.0"
 dependencies = [
  "cbindgen_rust_parser",
+ "log",
 ]
 
 [[package]]

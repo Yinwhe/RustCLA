@@ -1,67 +1,86 @@
 use std::collections::HashMap;
 
 use cbindgen_rust_parser::{
-    Builder, Config, Error as BindgenError, Item, ItemContainer, Parse, Path, PrimitiveType, Type, Function,
+    Builder, Config, Error as BindgenError, Function, Item, ItemContainer, Parse, Path,
+    PrimitiveType, Type,
 };
+use log::{debug, warn};
 
-use crate::{CollectError, REnum, RField, RFunction, RStruct, RStructType, RType, TypeDef};
+use crate::{CollectError, REnum, RField, RFunction, RInfo, RStruct, RStructType, RType, TypeDef};
 
 pub struct Resolver {
     parse: Parse,
-    structs: Vec<RStructType>,
-    funcs: Vec<RFunction>,
+    structs: HashMap<String, RStructType>,
+    funcs: HashMap<String, RFunction>,
     typedefs: HashMap<String, TypeDef>,
 }
 
 impl Resolver {
     pub fn new(file: &str) -> Result<Self, CollectError> {
         let parse = cbindgen_parse_one(file)?;
-        println!("{:#?}", parse);
+        // println!("{:#?}", parse);
         Ok(Self {
             parse,
-            structs: Vec::new(),
-            funcs: Vec::new(),
+            structs: HashMap::new(),
+            funcs: HashMap::new(),
             typedefs: HashMap::new(),
         })
     }
 
-    pub fn resolve_cbindgen_one(&mut self) {
+    pub fn resolve_cbindgen_one(&mut self) -> Result<RInfo, CollectError> {
         // resolve structs
         for item in self.parse.structs.to_vec() {
+            let name = item.name().to_owned();
             if let Some(st) = self.resolve_struct(item.container()) {
                 // print!("{:#?}", st);
-                self.structs.push(st);
+                self.structs.insert(name, st);
             } else {
                 // TODO
+                warn!("parse struct fails, struct: {:?}", item);
             }
         }
 
         for item in self.parse.enums.to_vec() {
+            let name = item.name().to_owned();
             if let Some(st) = self.resolve_struct(item.container()) {
                 // print!("{:#?}", st);
-                self.structs.push(st);
+                self.structs.insert(name, st);
             } else {
                 // TODO
+                warn!("parse enum fails, enum: {:?}", item);
             }
         }
 
         for item in self.parse.unions.to_vec() {
+            let name = item.name().to_owned();
             if let Some(st) = self.resolve_struct(item.container()) {
                 // print!("{:#?}", st);
-                self.structs.push(st);
+                self.structs.insert(name, st);
             } else {
                 // TODO
+                warn!("parse union fails, union: {:?}", item);
             }
         }
 
         // resolve funcs
         for func in self.parse.functions.to_vec() {
-            if let Some(func) = self.resolve_function(func) {
-                self.funcs.push(func);
+            if let Some(func) = self.resolve_function(func.clone()) {
+                self.funcs.insert(func.name.clone(), func);
             } else {
                 // TODO
+                warn!("parse function fails, function: {:?}", func);
             }
         }
+
+        debug!("{:#?}", self.typedefs);
+        debug!("{:#?}", self.structs);
+        debug!("{:#?}", self.funcs);
+
+        Ok(RInfo {
+            structs: self.structs.drain().map(|(_k, v)| v).collect(),
+            funcs: self.funcs.drain().map(|(_k, v)| v).collect(),
+            typedefs: self.typedefs.drain().map(|(_k, v)| v).collect(),
+        })
     }
 
     fn resolve_btype_to_rtype(&self, ty: Type) -> Option<RType> {
@@ -147,7 +166,7 @@ impl Resolver {
 
         let ret = {
             if let Some(ty) = self.resolve_btype_to_rtype(func.ret) {
-                Some(RField {name: None, ty: ty})
+                Some(RField { name: None, ty: ty })
             } else {
                 None
             }

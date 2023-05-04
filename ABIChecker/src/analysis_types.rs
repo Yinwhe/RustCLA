@@ -1,25 +1,41 @@
 use std::fmt::Debug;
 
+use collect_cxx::CStruct;
 use inkwell::{
     targets::TargetData,
     types::{BasicTypeEnum, StructType},
 };
 
 #[derive(Debug)]
+pub struct Analysis<'ctx>{
+    pub info_structs: Vec<AnalysisStruct<'ctx>>,
+    // pub info_functions: Vec<AnalysisFunction>,
+}
+
+
+#[derive(Debug)]
 pub struct AnalysisStruct<'ctx> {
-    fields: Vec<AnalysisField<'ctx>>,
-    alignment: u32,
+    pub is_raw: bool,
+    pub name: Option<String>,
+    pub is_union: Option<bool>,
+    pub is_enum: Option<bool>,
+
+    pub fields: Vec<AnalysisField<'ctx>>,
+    pub alignment: u32,
 }
 
 #[derive(Clone)]
 pub struct AnalysisField<'ctx> {
-    type_id: u32,
-    range: (u32, u32),
+    pub name: Option<String>,
+    pub is_padding: Option<bool>,
+
+    pub type_id: u32,
+    pub range: (u32, u32),
     _inner: BasicTypeEnum<'ctx>,
 }
 
 impl<'ctx> AnalysisStruct<'ctx> {
-    pub fn from_ctx(st: StructType<'ctx>, target_data: &TargetData) -> Self {
+    pub fn from_ctx_raw(st: StructType<'ctx>, target_data: &TargetData) -> Self {
         let mut fields = Vec::new();
         let alignment = target_data.get_abi_alignment(&st);
 
@@ -31,13 +47,26 @@ impl<'ctx> AnalysisStruct<'ctx> {
             let end = start + target_data.get_store_size(&ty) as u32;
 
             fields.push(AnalysisField {
+                name: None,
+                is_padding: None,
+
                 type_id: id,
                 range: (start, end),
                 _inner: ty,
             });
         }
-        Self { fields, alignment }
+        Self {
+            is_raw: true,
+            name: None,
+            is_union: None,
+            is_enum: None,
+
+            fields,
+            alignment,
+        }
     }
+
+
 
     pub fn get_fields_iters(self) -> impl Iterator<Item = AnalysisField<'ctx>> {
         self.fields.into_iter()

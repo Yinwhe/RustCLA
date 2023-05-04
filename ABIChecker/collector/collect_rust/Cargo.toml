@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 cbindgen_rust_parser = { path = "../../modified_deps/cbindgen" }
+log = "0.4.17"

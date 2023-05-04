@@ -20,7 +20,7 @@ pub fn parse(file: &str, clang_target: Option<&str>, cpp_standard: Option<&str>)
         args.push_str(" --std=c++11 ");
     }
 
-    debug!("args: {}", args);
+    debug!("args: {:?}", args);
 
     match Resolver::new(file, &[&args]) {
         Ok(mut resolve) => match resolve.resolve_bindgen_one() {
