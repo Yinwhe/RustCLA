@@ -8,7 +8,7 @@ pub use function::*;
 pub use structure::*;
 pub use typedef::*;
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct CInfo {
     pub structs: Vec<CStruct>,
     pub funcs: Vec<CFunction>,
@@ -26,13 +26,13 @@ impl CInfo {
     }
 }
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub enum CollectError {
     BindgenError(BindgenError),
     ResolveError(ResolveError)
 }
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub enum ResolveError {
     UnsupportedType(String),
 }
@@ -43,7 +43,7 @@ impl From<BindgenError> for CollectError {
     }
 }
 
-#[derive(Debug)]
+// #[derive(Debug)]
 /// llvm basic types
 pub enum CType {
     IntType,

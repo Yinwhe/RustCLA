@@ -26,12 +26,12 @@ pub fn parse(file: &str, clang_target: Option<&str>, cpp_standard: Option<&str>)
         Ok(mut resolve) => match resolve.resolve_bindgen_one() {
             Ok(cinfo) => Some(cinfo),
             Err(err) => {
-                warn!("Failed to resolve file: {}, due to {:?}", file, err);
+                // warn!("Failed to resolve file: {}, due to {:?}", file, err);
                 None
             }
         },
         Err(err) => {
-            warn!("Failed to parse file: {}, due to {:?}", file, err);
+            // warn!("Failed to parse file: {}, due to {:?}", file, err);
             None
         }
     }

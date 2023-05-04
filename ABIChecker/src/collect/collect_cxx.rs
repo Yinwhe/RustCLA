@@ -16,7 +16,7 @@ pub fn collect_info_from_cpp_file<'ctx>(
     cpp_standard: Option<&str>,
 ) -> Result<Analysis<'ctx>, String> {
     // let cinfo = parse(file, clang_target, cpp_standard);
-    // let cinfo = CInfo::empty();
+    let cinfo = CInfo::empty();
     generate_bcfile(file)?;
     
     // parse bc code
@@ -28,12 +28,12 @@ pub fn collect_info_from_cpp_file<'ctx>(
         }
     };
 
-    let target_machine = host_target();
+    // let target_machine = host_target();
 
-    for cst in cinfo.structs {
-        let res = resolve_one(cst, &module, target_machine.get_target_data());
-        // print!("{:#?}", res);
-    }
+    // for cst in cinfo.structs {
+    //     let res = resolve_one(cst, &module, target_machine.get_target_data());
+    //     // print!("{:#?}", res);
+    // }
 
     unimplemented!()
 }

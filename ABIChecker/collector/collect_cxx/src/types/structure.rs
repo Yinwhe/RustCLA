@@ -1,8 +1,6 @@
-use std::fmt::Debug;
-
 use crate::CType;
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct CStruct {
     pub name: Option<String>,
     pub fields: Vec<CField>,
@@ -18,7 +16,7 @@ impl CStruct {
 }
 
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct CField {
     pub name: Option<String>,
     pub ty: CType,

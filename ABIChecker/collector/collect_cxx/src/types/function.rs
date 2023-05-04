@@ -1,6 +1,6 @@
 use crate::CField;
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct CFunction {
     pub name: String,
     pub args: Vec<CField>,
