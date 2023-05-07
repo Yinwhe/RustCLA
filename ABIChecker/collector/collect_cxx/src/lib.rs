@@ -12,12 +12,12 @@ pub use types::*;
 pub fn parse(file: &str, clang_target: Option<&str>, cpp_standard: Option<&str>) -> Option<CInfo> {
     let mut args = String::new();
     if let Some(target) = clang_target {
-        args.push_str(&format!(" --target={} ", target));
+        args.push_str(&format!("--target={}", target));
     }
     if let Some(standard) = cpp_standard {
-        args.push_str(&format!(" --std={} ", standard));
+        args.push_str(&format!("--std={}", standard));
     } else {
-        args.push_str(" --std=c++11 ");
+        args.push_str("--std=c++11");
     }
 
     debug!("args: {:?}", args);
@@ -26,12 +26,12 @@ pub fn parse(file: &str, clang_target: Option<&str>, cpp_standard: Option<&str>)
         Ok(mut resolve) => match resolve.resolve_bindgen_one() {
             Ok(cinfo) => Some(cinfo),
             Err(err) => {
-                // warn!("Failed to resolve file: {}, due to {:?}", file, err);
+                warn!("Failed to resolve file: {}, due to {:?}", file, err);
                 None
             }
         },
         Err(err) => {
-            // warn!("Failed to parse file: {}, due to {:?}", file, err);
+            warn!("Failed to parse file: {}, due to {:?}", file, err);
             None
         }
     }

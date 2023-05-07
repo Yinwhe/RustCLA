@@ -1,6 +1,9 @@
-use crate::CType;
+use std::fmt::Debug;
+use serde::{Serialize, Deserialize};
 
-// #[derive(Debug)]
+use super::CType;
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CStruct {
     pub name: Option<String>,
     pub fields: Vec<CField>,
@@ -15,11 +18,20 @@ impl CStruct {
     }
 }
 
-
-// #[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CField {
     pub name: Option<String>,
     pub ty: CType,
+}
+
+impl CField {
+    pub fn get_struct(&self) -> Option<&CStruct> {
+        if let CType::StructType(st) = &self.ty {
+            Some(st)
+        } else {
+            None
+        }
+    }
 }
 
 /// Infact we do not support enum check, currently we just treat it as integer

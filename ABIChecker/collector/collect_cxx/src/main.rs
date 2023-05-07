@@ -1,6 +1,14 @@
 use collect_cxx::parse;
+use clap::Parser;
+
+#[derive(Parser)]
+struct Args {
+    file: String,
+}
 
 fn main() {
-    let res = parse("tests/typedef.h", None, None);
-    print!("{:#?}", res)
+    let args = Args::parse();
+
+    let cinfo = parse(&args.file, None, None).expect("parse failed");
+    println!("{}", serde_json::to_string(&cinfo).unwrap());
 }

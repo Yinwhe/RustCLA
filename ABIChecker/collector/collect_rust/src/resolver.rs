@@ -178,7 +178,11 @@ impl Resolver {
 
 /// use `cbindgen` parser to parse rust codes
 fn cbindgen_parse_one(file: &str) -> Result<Parse, BindgenError> {
-    let config = Config::from_file("config.toml").expect("config.toml not found");
+    // let config = Config::from_s::from_file("config.toml").expect("config.toml not found");
+    let mut config = Config::default();
+    config.layout.packed = Some("__attribute__ ((packed))".to_string());
+    config.layout.aligned_n = Some("__attribute__ ((aligned(n)))".to_string());
+
     Builder::new()
         .with_src(file)
         .with_std_types(false)

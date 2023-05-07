@@ -1,43 +1,41 @@
-use collect_cxx::*;
-use collect_rust::*;
-use inkwell::{module::Module, targets::TargetData, types::BasicTypeEnum, types::StructType};
-
 use crate::analysis_types::*;
-
+use inkwell::{module::Module, targets::TargetData, types::BasicTypeEnum, types::StructType};
 use std::collections::HashMap;
 
-pub fn analysis_struct(rm: Module, cm: Module, rinfo: RInfo, cinfo: CInfo) {
-    let mut rust_struct = HashMap::new();
-    let mut cpp_struct = HashMap::new();
+// pub fn analysis_struct(rm: Module, cm: Module, rinfo: RInfo, cinfo: CInfo) {
+//     let mut rust_struct = HashMap::new();
+//     let mut cpp_struct = HashMap::new();
 
-    for rs in rinfo.structs {
-        let s = match rm.get_struct_type(&rs.name) {
-            Some(s) => s,
-            None => continue,
-        };
+//     for rs in rinfo.structs {
+//         let s = match rm.get_struct_type(&rs.name) {
+//             Some(s) => s,
+//             None => continue,
+//         };
 
-        rust_struct.insert(rs.name, s);
-    }
+//         rust_struct.insert(rs.name, s);
+//     }
 
-    for cs in cinfo.structs {
-        let s = match cm.get_struct_type(&format!("class.{}", cs.name)) {
-            Some(s) => s,
-            None => match cm.get_struct_type(&format!("struct.{}", cs.name)) {
-                Some(s) => s,
-                None => continue,
-            },
-        };
+//     for cs in cinfo.structs {
+//         let s = match cm.get_struct_type(&format!("class.{}", cs.name)) {
+//             Some(s) => s,
+//             None => match cm.get_struct_type(&format!("struct.{}", cs.name)) {
+//                 Some(s) => s,
+//                 None => continue,
+//             },
+//         };
 
-        cpp_struct.insert(cs.name, s);
-    }
-}
+//         cpp_struct.insert(cs.name, s);
+//     }
+// }
 
 /// Three parts: align, size, type
-pub fn struct_layout_analysis<'ctx>(
-    rstruct: StructType<'ctx>,
-    cstruct: StructType<'ctx>,
+pub fn info_struct_analysis<'ctx>(
+    rstruct: AnalysisStruct<'ctx>,
+    cstruct: AnalysisStruct<'ctx>,
     target_data: TargetData,
 ) -> AnalysisResult<'ctx> {
+    assert!(rstruct.is_raw == false && cstruct.is_raw == false);
+
     println!("Debug:\nrstruct: {:?}\n cstruct: {:?}\n", rstruct, cstruct);
     enum AnalysisStatus {
         Match,
@@ -46,22 +44,22 @@ pub fn struct_layout_analysis<'ctx>(
     }
 
     let mut status = AnalysisStatus::Match;
+    let mut result = AnalysisResult::new(rstruct.clone(), cstruct.clone());
 
-    let rstruct = AnalysisStruct::from_ctx(rstruct, &target_data);
-    let cstruct = AnalysisStruct::from_ctx(cstruct, &target_data);
-
-    // Check align first
+    // Check struct align first
     if rstruct.get_alignment() != cstruct.get_alignment() {
-        panic!("mismatch")
+        result.add_info(AnalysisResultContent::warn(
+            0,
+            0,
+            AnalysisResultType::AlignmentMismatch,
+            format!("Alignment mismatch"),
+        ));
     }
 
     let mut matches = Vec::new();
 
-    let mut r_iters = rstruct.get_fields_iters();
-    let mut c_iters = cstruct.get_fields_iters();
-
-    let mut r_process = r_iters.next();
-    let mut c_process = c_iters.next();
+    let mut r_index = 0;
+    let mut c_index = 0;
 
     let mut r_match = Vec::new();
     let mut c_match = Vec::new();
@@ -70,8 +68,7 @@ pub fn struct_layout_analysis<'ctx>(
     let mut accumulate = 0;
 
     // Check size
-    while r_process.is_some() && c_process.is_some() {
-        let (rf, cf) = (r_process.unwrap(), c_process.unwrap());
+    while let (Some(rf), Some(cf)) = (rstruct.get_field(r_index), cstruct.get_field(c_index)) {
         let (rf_size, cf_size) = (rf.get_size(), cf.get_size());
 
         match status {
@@ -88,16 +85,15 @@ pub fn struct_layout_analysis<'ctx>(
                     // renew
                     r_match = Vec::new();
                     c_match = Vec::new();
-                    r_process = r_iters.next();
-                    c_process = c_iters.next();
+                    r_index += 1;
+                    c_index += 1;
                 } else if rf_size < cf_size {
                     // rust fields smaller, c fields wonn't iter
                     accumulate += rf_size;
                     r_match.push(rf);
 
                     // renew
-                    r_process = r_iters.next();
-                    c_process = Some(cf);
+                    r_index += 1;
                     status = AnalysisStatus::CppRemain;
                 } else {
                     // c fields smaller, rust fields wonn't iter
@@ -105,8 +101,7 @@ pub fn struct_layout_analysis<'ctx>(
                     c_match.push(cf);
 
                     // renew
-                    r_process = Some(rf);
-                    c_process = c_iters.next();
+                    c_index += 1;
                     status = AnalysisStatus::RustRemain;
                 }
             }
@@ -123,8 +118,8 @@ pub fn struct_layout_analysis<'ctx>(
                     // renew
                     r_match = Vec::new();
                     c_match = Vec::new();
-                    r_process = r_iters.next();
-                    c_process = c_iters.next();
+                    r_index += 1;
+                    c_index += 1;
 
                     status = AnalysisStatus::Match;
                 } else if rf_size > cf_size + accumulate {
@@ -133,11 +128,16 @@ pub fn struct_layout_analysis<'ctx>(
                     c_match.push(cf);
 
                     // renew
-                    r_process = Some(rf);
-                    c_process = c_iters.next();
+                    c_index += 1;
                 } else {
-                    // TODO: mismatch occurs
-                    panic!("Mismatch occurs")
+                    // mismatch occurs
+                    result.add_info(AnalysisResultContent::error(
+                        r_index,
+                        c_index,
+                        AnalysisResultType::SizeMismatch,
+                        format!("Mismatch occurs"),
+                    ));
+                    return result;
                 }
             }
             AnalysisStatus::CppRemain => {
@@ -153,8 +153,8 @@ pub fn struct_layout_analysis<'ctx>(
                     // renew
                     r_match = Vec::new();
                     c_match = Vec::new();
-                    r_process = r_iters.next();
-                    c_process = c_iters.next();
+                    r_index += 1;
+                    c_index += 1;
 
                     status = AnalysisStatus::Match;
                 } else if rf_size + accumulate < cf_size {
@@ -163,26 +163,31 @@ pub fn struct_layout_analysis<'ctx>(
                     r_match.push(rf);
 
                     // renew
-                    r_process = r_iters.next();
-                    c_process = Some(cf);
+                    r_index += 1;
                 } else {
-                    // TODO: mismatch occurs
-                    panic!("Mismatch occurs")
+                    // mismatch occurs
+                    result.add_info(AnalysisResultContent::error(
+                        r_index,
+                        c_index,
+                        AnalysisResultType::SizeMismatch,
+                        format!("Mismatch occurs"),
+                    ));
+                    return result;
                 }
             }
         } // match ends
     } // while ends
 
     // Check remain rust fields
-    while let Some(rf) = r_process {
+    while let Some(rf) = rstruct.get_field(r_index) {
         r_match.push(rf);
-        r_process = r_iters.next();
+        r_index += 1;
     }
 
     // Check remain c fields
-    while let Some(cf) = c_process {
+    while let Some(cf) = cstruct.get_field(c_index) {
         c_match.push(cf);
-        c_process = c_iters.next();
+        c_index += 1;
     }
 
     // we have remaining unmatched fields
@@ -202,7 +207,11 @@ pub fn struct_layout_analysis<'ctx>(
 
     // Now we can do type checks
     while let Some((mut rm, mut cm)) = matches.pop() {
-        
+        assert!(rm.len() >= 1 && cm.len() >= 1);
+        if rm.len() == 1 && cm.len() == 1 {
+        } else if rm.len() == 1 {
+        } else {
+        }
     }
 
     unimplemented!()

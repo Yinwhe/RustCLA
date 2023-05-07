@@ -1,41 +1,83 @@
-use std::process::Command;
-
-use ansi_term::Color;
-use collect_cxx::{parse, CInfo, CStruct};
-use inkwell::{
-    context::Context,
-    module::Module,
-    targets::{Target, TargetData},
+use std::{
+    process::Command,
+    sync::{Arc, Mutex},
 };
+
+use inkwell::{context::Context, module::Module, targets::TargetData};
+use lazy_static::lazy_static;
 
 use crate::{analysis_types::*, target::host_target};
 
-pub fn collect_info_from_cpp_file<'ctx>(
+use super::ctypes::*;
+
+const COLLECT_CXX: &str = "collector/collect_cxx/collect_cxx";
+
+lazy_static! {
+    static ref CX: Arc<Mutex<Context>> = Arc::new(Mutex::new(Context::create()));
+}
+
+#[inline]
+pub fn collect_info_from_cpp_file<'cx>(
     file: &str,
     clang_target: Option<&str>,
     cpp_standard: Option<&str>,
-) -> Result<Analysis<'ctx>, String> {
-    // let cinfo = parse(file, clang_target, cpp_standard);
-    let cinfo = CInfo::empty();
+    cx: &'cx Context,
+) -> Result<Analysis<'cx>, String> {
+    let res = Command::new(COLLECT_CXX)
+        .arg(file)
+        .output()
+        .expect("failed to execute process");
+
+    let cinfo = if res.status.success() {
+        let cinfo: CInfo = serde_json::from_slice(&res.stdout).unwrap();
+        cinfo
+    } else {
+        return Err(format!(
+            "collect info from cpp file fails, due to {:?}",
+            res.stderr
+        ));
+    };
+
     generate_bcfile(file)?;
-    
+
     // parse bc code
-    let cx = Context::create();
-    let module = match Module::parse_bitcode_from_path("cpp.bc", &cx) {
+    let module = match Module::parse_bitcode_from_path("cpp.bc", cx) {
         Ok(m) => m,
         Err(e) => {
             return Err(format!("parse bitcode from path fails, due to {:?}", e));
         }
     };
 
-    // let target_machine = host_target();
+    let target_machine = host_target();
 
-    // for cst in cinfo.structs {
-    //     let res = resolve_one(cst, &module, target_machine.get_target_data());
-    //     // print!("{:#?}", res);
-    // }
+    // deal wtih structs
+    let mut info_structs = Vec::new();
+    let mut raw_structs = Vec::new();
 
-    unimplemented!()
+    for cst in cinfo.structs {
+        match resolve_one(cst, &module, target_machine.get_target_data()) {
+            Ok(st) => {
+                // resolve ok
+                info_structs.push(st);
+            }
+            Err((msg, None)) => { // rersolve error
+                 // TODO
+            }
+            Err((msg, Some(st))) => {
+                // resolve fail, but raw struct is ok
+                // TODO
+                raw_structs.push(st);
+            }
+        }
+    }
+
+    // TODO: deal with functions
+
+    Ok(Analysis {
+        info_structs,
+        raw_structs,
+    })
+    // unimplemented!()
 }
 
 fn generate_bcfile(file: &str) -> Result<(), String> {
@@ -55,12 +97,13 @@ fn resolve_one<'ctx>(
     cst: CStruct,
     module: &Module<'ctx>,
     target_data: TargetData,
-) -> Result<AnalysisStruct<'ctx>, String> {
-    let name = if let Some(name) = cst.name {
+) -> Result<AnalysisStruct<'ctx>, (String, Option<AnalysisStruct<'ctx>>)> {
+    let name = if let Some(name) = cst.name.clone() {
         name
     } else {
-        return Err(format!(
-            "resolve AnalysisStruct fail, anonymous struct found"
+        return Err((
+            format!("resolve AnalysisStruct fail, anonymous struct unsupported"),
+            None,
         ));
     };
 
@@ -69,9 +112,9 @@ fn resolve_one<'ctx>(
             if let Some(struct_type) = module.get_struct_type(&format!("union.{}", name)) {
                 struct_type
             } else {
-                return Err(format!(
-                    "resolve AnalysisStruct fail, union type {} not found",
-                    name
+                return Err((
+                    format!("resolve AnalysisStruct fail, union type {} not found", name),
+                    None,
                 ));
             };
 
@@ -90,37 +133,70 @@ fn resolve_one<'ctx>(
             } else if let Some(struct_type) = module.get_struct_type(&format!("struct.{}", name)) {
                 struct_type
             } else {
-                return Err(format!(
-                    "resolve AnalysisStruct fail, struct type {} not found",
-                    name
+                return Err((
+                    format!(
+                        "resolve AnalysisStruct fail, struct type {} not found",
+                        name
+                    ),
+                    None,
                 ));
             };
 
         let mut ast = AnalysisStruct::from_ctx_raw(struct_type, &target_data);
 
-        let mut index = 0;
-        let len = cst.fields.len();
-        for rf in &mut ast.fields {
-            let f = &cst.fields[index];
+        if let Err(e) = resolve_struct(&mut ast, &cst) {
+            return Err((e, Some(ast)));
+        } else {
+            return Ok(ast);
+        }
+    }
+}
 
-            if f.ty.get_type_id() == rf.get_type_id() {
-                rf.name = f.name.clone();
-                rf.is_padding = Some(false);
-                index += 1
-            } else if rf.can_be_anytype() {
+fn resolve_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), String> {
+    let name = cst.name.clone().expect("Fatal error, should not happen");
+
+    let mut index = 0;
+    let len = cst.fields.len();
+    for rf in &mut ast.fields {
+        if index >= len {
+            // info parsed done, finsh the remaining fields
+            if rf.can_be_anytype() {
                 rf.is_padding = Some(true);
             }
+            continue;
         }
 
-        if index != len {
-            return Err(format!("resolve AnalysisStruct fail, {} info not match", name));
+        let f = &cst.fields[index];
+
+        if f.ty.get_type_id() == rf.get_type_id() {
+            rf.name = f.name.clone();
+            rf.is_padding = Some(false);
+            index += 1;
+
+            // recursive resolve
+            if let Some(st) = rf.get_struct_mut() {
+                let cst = f.get_struct().expect("Fatal error, should not happen");
+                
+                if let Err(e) = resolve_struct(st, cst) {
+                    return Err(e);
+                }
+            }
+        } else if rf.can_be_anytype() {
+            rf.is_padding = Some(true);
         }
-
-        ast.is_raw = false;
-        ast.is_enum = Some(false);
-        ast.is_union = Some(false);
-        ast.name = Some(name);
-
-        return Ok(ast);
     }
+
+    if index != len {
+        return Err(format!(
+            "resolve AnalysisStruct fail, {} info not match",
+            name
+        ));
+    }
+
+    ast.is_raw = false;
+    ast.is_enum = Some(false);
+    ast.is_union = Some(false);
+    ast.name = Some(name);
+
+    return Ok(());
 }

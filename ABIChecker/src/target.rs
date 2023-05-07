@@ -19,6 +19,7 @@ pub fn host_target() -> TargetMachine {
             CodeModel::Default,
         )
         .expect("Could not create target machine");
-    
+
+
     target_machine
 }

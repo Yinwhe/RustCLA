@@ -53,3 +53,16 @@ pub enum RType {
     StructType(RStructType),
     VecTorType,
 }
+
+impl RType {
+    pub fn get_type_id(&self) -> u32 {
+        match self {
+            RType::ArrayType => 0,
+            RType::FloatType => 1,
+            RType::IntType => 2,
+            RType::PointerType => 3,
+            RType::StructType(_) => 4,
+            RType::VecTorType => 5,
+        }
+    }
+}

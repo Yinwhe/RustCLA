@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+#[cfg(feature = "my_crate")]
 use bindgen_cxx_parser::BindgenError;
 
 mod function;
@@ -8,7 +10,7 @@ pub use function::*;
 pub use structure::*;
 pub use typedef::*;
 
-// #[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CInfo {
     pub structs: Vec<CStruct>,
     pub funcs: Vec<CFunction>,
@@ -26,24 +28,27 @@ impl CInfo {
     }
 }
 
-// #[derive(Debug)]
+#[cfg(feature = "my_crate")]
+#[derive(Debug)]
 pub enum CollectError {
     BindgenError(BindgenError),
     ResolveError(ResolveError)
 }
 
-// #[derive(Debug)]
+#[cfg(feature = "my_crate")]
+#[derive(Debug)]
 pub enum ResolveError {
     UnsupportedType(String),
 }
 
+#[cfg(feature = "my_crate")]
 impl From<BindgenError> for CollectError {
     fn from(err: BindgenError) -> Self {
         CollectError::BindgenError(err)
     }
 }
 
-// #[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 /// llvm basic types
 pub enum CType {
     IntType,

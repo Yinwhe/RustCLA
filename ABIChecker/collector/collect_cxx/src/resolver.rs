@@ -117,9 +117,9 @@ impl Resolver {
             }
         }
 
-        // debug!("{:#?}", self.typedefs);
-        // debug!("{:#?}", self.structs);
-        // debug!("{:#?}", self.funcs);
+        debug!("{:#?}", self.typedefs);
+        debug!("{:#?}", self.structs);
+        debug!("{:#?}", self.funcs);
 
         Ok(CInfo {
             structs: self.structs.drain().map(|(_k, v)| v).collect(),
