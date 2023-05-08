@@ -1,12 +1,10 @@
 use crate::analysis_types::*;
 
 /// Three parts: align, size, type
-pub fn info_struct_analysis<'ctx>(
-    rstruct: AnalysisStruct<'ctx>,
-    cstruct: AnalysisStruct<'ctx>,
-) -> AnalysisStructResult<'ctx> {
-    assert!(rstruct.is_raw == false && cstruct.is_raw == false);
-
+pub fn info_struct_analysis(
+    rstruct: AnalysisStruct,
+    cstruct: AnalysisStruct,
+) -> AnalysisStructResult {
     println!("Debug:\nrstruct: {:?}\n cstruct: {:?}\n", rstruct, cstruct);
     enum AnalysisStatus {
         Match,
@@ -191,7 +189,59 @@ pub fn info_struct_analysis<'ctx>(
 pub fn function_analysis(
     rfunc: AnalysisFunction,
     cfunc: AnalysisFunction,
-)  {
+) -> AnalsisFunctionResult {
+    let mut result = AnalsisFunctionResult::new(rfunc.clone(), cfunc.clone());
 
-    unimplemented!()
+    // check arg len
+    if rfunc.params.len() != cfunc.params.len() {
+        result.add_info(AnalysisResultContent::error(
+            0,
+            0,
+            AnalysisResultType::ArgsLengthMismatch,
+            format!("Args len mismatch"),
+        ));
+        return result;
+    }
+
+    // check arg passby
+    for i in 0..rfunc.params.len() {
+        let rp = &rfunc.params[i];
+        let cp = &cfunc.params[i];
+        if rp.pass_by != cp.pass_by {
+            result.add_info(AnalysisResultContent::error(
+                i,
+                i,
+                AnalysisResultType::ArgsPassByMismatch,
+                format!("Args passby mismatch"),
+            ));
+        }
+    }
+
+    // check ret type
+    if rfunc.ret.is_none() && cfunc.ret.is_none() {
+        return result;
+    } else if rfunc.ret.is_some() && cfunc.ret.is_some() {
+        let rr = rfunc.ret.unwrap();
+        let cr = cfunc.ret.unwrap();
+
+        if rr.pass_by != cr.pass_by {
+            result.add_info(AnalysisResultContent::error(
+                0,
+                0,
+                AnalysisResultType::RetPassByMismatch,
+                format!("Ret passby mismatch"),
+            ));
+        }
+
+        return result;
+    } else {
+        result.add_info(AnalysisResultContent::error(
+            0,
+            0,
+            AnalysisResultType::RetMismatch,
+            format!("Ret type mismatch"),
+        ));
+
+        return result;
+    }
 }

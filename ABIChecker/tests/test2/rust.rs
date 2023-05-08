@@ -21,7 +21,8 @@ extern "C" {
     pub fn MakeBar() -> Bar;
 }
 
-pub fn root(f: Foo, b: Bar) {
+#[no_mangle]
+pub extern "C" fn root() {
     unsafe {
         let f = MakeFoo();
         let b = MakeBar();

@@ -6,13 +6,13 @@ use cbindgen_rust_parser::{
 };
 use log::{debug, warn};
 
-use crate::{CollectError, REnum, RField, RFunction, RInfo, RStruct, RStructType, RType, TypeDef};
+use crate::{CollectError, REnum, RField, RFunction, RInfo, RStruct, RStructType, RType};
 
 pub struct Resolver {
     parse: Parse,
     structs: HashMap<String, RStructType>,
     funcs: HashMap<String, RFunction>,
-    typedefs: HashMap<String, TypeDef>,
+    // typedefs: HashMap<String, TypeDef>,
 }
 
 impl Resolver {
@@ -23,7 +23,7 @@ impl Resolver {
             parse,
             structs: HashMap::new(),
             funcs: HashMap::new(),
-            typedefs: HashMap::new(),
+            // typedefs: HashMap::new(),
         })
     }
 
@@ -72,14 +72,14 @@ impl Resolver {
             }
         }
 
-        debug!("{:#?}", self.typedefs);
+        // debug!("{:#?}", self.typedefs);
         debug!("{:#?}", self.structs);
         debug!("{:#?}", self.funcs);
 
         Ok(RInfo {
             structs: self.structs.drain().map(|(_k, v)| v).collect(),
             funcs: self.funcs.drain().map(|(_k, v)| v).collect(),
-            typedefs: self.typedefs.drain().map(|(_k, v)| v).collect(),
+            // typedefs: self.typedefs.drain().map(|(_k, v)| v).collect(),
         })
     }
 
@@ -156,7 +156,6 @@ impl Resolver {
     fn resolve_function(&self, func: Function) -> Option<RFunction> {
         // print!("{:#?}", func);
         let name = func.path.name().to_owned();
-        let mangled_name = "".to_string();
         let mut args = Vec::new();
 
         for arg in func.args {
@@ -176,7 +175,6 @@ impl Resolver {
 
         Some(RFunction {
             name,
-            mangled_name,
             args,
             ret,
         })

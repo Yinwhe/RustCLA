@@ -12,8 +12,8 @@ pub use typedef::*;
 pub struct RInfo {
     pub structs: Vec<RStructType>,
     pub funcs: Vec<RFunction>,
-    // pub opaques: i32,           // temp
-    pub typedefs: Vec<TypeDef>,
+    // pub opaques: ?
+    // pub typedefs: Vec<TypeDef>,
 }
 
 impl RInfo {
@@ -21,7 +21,7 @@ impl RInfo {
         Self {
             structs: Vec::new(),
             funcs: Vec::new(),
-            typedefs: Vec::new(),
+            // typedefs: Vec::new(),
         }
     }
 }

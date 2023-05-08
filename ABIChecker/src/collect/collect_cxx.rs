@@ -22,7 +22,7 @@ pub fn collect_info_from_cpp_file<'cx>(
     clang_target: Option<&str>,
     cpp_standard: Option<&str>,
     cx: &'cx Context,
-) -> Result<Analysis<'cx>, String> {
+) -> Result<Analysis, String> {
     let res = Command::new(COLLECT_CXX)
         .arg(file)
         .output()
@@ -51,25 +51,19 @@ pub fn collect_info_from_cpp_file<'cx>(
     let target_machine = host_target();
 
     // deal wtih structs
-    let mut info_structs = Vec::new();
-    let mut raw_structs = Vec::new();
+    let mut structs = Vec::new();
 
     for cst in cinfo.structs {
         match resolve_one_struct(cst, &module, target_machine.get_target_data()) {
             Ok(st) => {
                 // resolve ok
-                info_structs.push(st);
+                structs.push(st);
             }
-            Err((msg, None)) => { // rersolve error
+            Err(msg) => { // rersolve error
 
                 // TODO
             }
-            Err((msg, Some(st))) => {
-                // resolve fail, but raw struct is ok
-                // TODO
-                raw_structs.push(st);
-            }
-        }   
+        }
     }
 
     // deal with functions
@@ -80,7 +74,6 @@ pub fn collect_info_from_cpp_file<'cx>(
         .map(|f| f.get_name().to_string_lossy().into_owned())
         .collect();
     let map = collect_mangles(names);
-
 
     for cfunc in cinfo.funcs {
         if let Some(Some(funcv)) = map
@@ -100,11 +93,7 @@ pub fn collect_info_from_cpp_file<'cx>(
         }
     }
 
-    Ok(Analysis {
-        info_structs,
-        raw_structs,
-        functions,
-    })
+    Ok(Analysis { structs, functions })
 }
 
 fn generate_bcfile(file: &str) -> Result<(), String> {
@@ -120,17 +109,16 @@ fn generate_bcfile(file: &str) -> Result<(), String> {
     }
 }
 
-fn resolve_one_struct<'ctx>(
+fn resolve_one_struct(
     cst: CStruct,
-    module: &Module<'ctx>,
+    module: &Module,
     target_data: TargetData,
-) -> Result<AnalysisStruct<'ctx>, (String, Option<AnalysisStruct<'ctx>>)> {
+) -> Result<AnalysisStruct, String> {
     let name = if let Some(name) = cst.name.clone() {
         name
     } else {
-        return Err((
-            format!("resolve AnalysisStruct fail, anonymous struct unsupported"),
-            None,
+        return Err(format!(
+            "resolve AnalysisStruct fail, anonymous struct unsupported"
         ));
     };
 
@@ -139,18 +127,17 @@ fn resolve_one_struct<'ctx>(
             if let Some(struct_type) = module.get_struct_type(&format!("union.{}", name)) {
                 struct_type
             } else {
-                return Err((
-                    format!("resolve AnalysisStruct fail, union type {} not found", name),
-                    None,
+                return Err(format!(
+                    "resolve AnalysisStruct fail, union type {} not found",
+                    name
                 ));
             };
 
         let mut ast = AnalysisStruct::from_ctx_raw(struct_type, &target_data);
 
-        ast.is_union = Some(true);
-        ast.is_enum = Some(false);
+        ast.is_union = true;
+        ast.is_enum = false;
         ast.name = Some(name);
-        ast.is_raw = false;
 
         return Ok(ast);
     } else {
@@ -160,19 +147,16 @@ fn resolve_one_struct<'ctx>(
             } else if let Some(struct_type) = module.get_struct_type(&format!("struct.{}", name)) {
                 struct_type
             } else {
-                return Err((
-                    format!(
-                        "resolve AnalysisStruct fail, struct type {} not found",
-                        name
-                    ),
-                    None,
+                return Err(format!(
+                    "resolve AnalysisStruct fail, struct type {} not found",
+                    name
                 ));
             };
 
         let mut ast = AnalysisStruct::from_ctx_raw(struct_type, &target_data);
 
         if let Err(e) = __resolve_one_struct(&mut ast, &cst) {
-            return Err((e, Some(ast)));
+            return Err(e);
         } else {
             return Ok(ast);
         }
@@ -188,7 +172,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), S
         if index >= len {
             // info parsed done, finsh the remaining fields
             if rf.can_be_anytype() {
-                rf.is_padding = Some(true);
+                rf.is_padding = true;
             }
             continue;
         }
@@ -197,7 +181,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), S
 
         if f.ty.get_type_id() == rf.get_type_id() {
             rf.name = f.name.clone();
-            rf.is_padding = Some(false);
+            rf.is_padding = false;
             index += 1;
 
             // recursive resolve
@@ -209,7 +193,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), S
                 }
             }
         } else if rf.can_be_anytype() {
-            rf.is_padding = Some(true);
+            rf.is_padding = true;
         }
     }
 
@@ -220,9 +204,8 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), S
         ));
     }
 
-    ast.is_raw = false;
-    ast.is_enum = Some(false);
-    ast.is_union = Some(false);
+    ast.is_enum = false;
+    ast.is_union = false;
     ast.name = Some(name);
 
     return Ok(());

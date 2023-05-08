@@ -6,15 +6,14 @@ use crate::{analysis_types::*, collect::helper::collect_mangles, target::host_ta
 
 use collect_rust::{parse, RFunction, RStructType};
 
-pub fn collect_info_from_rust_file<'cx>(
-    file: &str,
-    cx: &'cx Context,
-) -> Result<Analysis<'cx>, String> {
+pub fn collect_info_from_rust_file(file: &str, cx: &Context) -> Result<Analysis, String> {
     let rinfo = if let Some(rinfo) = parse(file) {
         rinfo
     } else {
         return Err(format!("collect info from rust file fails"));
     };
+
+    print!("{:#?}", rinfo);
 
     generate_bcfile(file)?;
 
@@ -29,22 +28,16 @@ pub fn collect_info_from_rust_file<'cx>(
     let target_machine = host_target();
 
     // deal wtih structs
-    let mut info_structs = Vec::new();
-    let mut raw_structs = Vec::new();
+    let mut structs = Vec::new();
 
     for rst in rinfo.structs {
         match resolve_one_struct(rst, &module, target_machine.get_target_data()) {
             Ok(st) => {
                 // resolve ok
-                info_structs.push(st);
+                structs.push(st);
             }
-            Err((msg, None)) => { // rersolve error
+            Err(msg) => { // rersolve error
                  // TODO
-            }
-            Err((msg, Some(st))) => {
-                // resolve fail, but raw struct is ok
-                // TODO
-                raw_structs.push(st);
             }
         }
     }
@@ -75,11 +68,7 @@ pub fn collect_info_from_rust_file<'cx>(
         }
     }
 
-    Ok(Analysis {
-        info_structs,
-        raw_structs,
-        functions,
-    })
+    Ok(Analysis { structs, functions })
 }
 
 fn generate_bcfile(file: &str) -> Result<(), String> {
@@ -95,105 +84,32 @@ fn generate_bcfile(file: &str) -> Result<(), String> {
     }
 }
 
-fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(), String> {
-    let name = ast.name.clone();
-
-    match rst {
-        RStructType::RStruct(rst) => {
-            let mut index = 0;
-            let len = rst.fields.len();
-            for rf in &mut ast.fields {
-                if index >= len {
-                    // info parsed done, finsh the rest fields
-                    if rf.can_be_anytype() {
-                        rf.is_padding = Some(true);
-                    }
-                    continue;
-                }
-
-                let f = &rst.fields[index];
-
-                if f.ty.get_type_id() == rf.get_type_id() {
-                    rf.name = f.name.clone();
-                    rf.is_padding = Some(false);
-                    index += 1;
-
-                    // recursive resolve
-                    if let Some(st) = rf.get_struct_mut() {
-                        let rst = f.get_struct().expect("Fatal error, should not happen");
-
-                        if let Err(e) = __resolve_one_struct(st, rst) {
-                            return Err(e);
-                        }
-                    }
-                } else if rf.can_be_anytype() {
-                    rf.is_padding = Some(true);
-                }
-            }
-
-            if index != len {
-                return Err(format!(
-                    "resolve AnalysisStruct fail, {:?} info not match",
-                    name
-                ));
-            }
-
-            ast.is_raw = false;
-            ast.is_enum = Some(false);
-            ast.is_union = Some(false);
-            ast.name = name;
-
-            return Ok(());
-        }
-        RStructType::RUnion(_rst) => {
-            ast.is_raw = false;
-            ast.is_enum = Some(false);
-            ast.is_union = Some(true);
-            ast.name = name;
-
-            return Ok(());
-        }
-        RStructType::REnum(_rst) => {
-            ast.is_raw = false;
-            ast.is_enum = Some(true);
-            ast.is_union = Some(false);
-            ast.name = name;
-
-            return Ok(());
-        }
-    }
-}
-
-fn resolve_one_struct<'ctx>(
+fn resolve_one_struct(
     rst: RStructType,
-    module: &Module<'ctx>,
+    module: &Module,
     target_data: TargetData,
-) -> Result<AnalysisStruct<'ctx>, (String, Option<AnalysisStruct<'ctx>>)> {
+) -> Result<AnalysisStruct, String> {
     let name = if let Some(name) = rst.get_name() {
         name
     } else {
-        return Err((
-            format!("resolve AnalysisStruct fail, anonymous structtype unsupported"),
-            None,
+        return Err(format!(
+            "resolve AnalysisStruct fail, anonymous structtype unsupported"
         ));
     };
 
     let struct_type = if let Some(struct_type) = module.get_struct_type(&format!("{}", name)) {
         struct_type
     } else {
-        return Err((
-            format!(
-                "resolve AnalysisStruct fail, struct type {} not found",
-                name
-            ),
-            None,
+        return Err(format!(
+            "resolve AnalysisStruct fail, struct type {} not found",
+            name
         ));
     };
 
     let mut ast = AnalysisStruct::from_ctx_raw(struct_type, &target_data);
 
     if let Err(e) = __resolve_one_struct(&mut ast, &rst) {
-        return Err((e, Some(ast)));
+        return Err(e);
     };
 
     ast.name = Some(name.to_string());
@@ -239,4 +155,70 @@ fn resolve_one_func(rfunc: RFunction, funcv: &FunctionValue) -> Result<AnalysisF
     };
 
     Ok(AnalysisFunction { name, params, ret })
+}
+
+fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(), String> {
+    let name = ast.name.clone();
+
+    match rst {
+        RStructType::RStruct(rst) => {
+            let mut index = 0;
+            let len = rst.fields.len();
+            for rf in &mut ast.fields {
+                if index >= len {
+                    // info parsed done, finsh the rest fields
+                    if rf.can_be_anytype() {
+                        rf.is_padding = true;
+                    }
+                    continue;
+                }
+
+                let f = &rst.fields[index];
+
+                if f.ty.get_type_id() == rf.get_type_id() {
+                    rf.name = f.name.clone();
+                    rf.is_padding = false;
+                    index += 1;
+
+                    // recursive resolve
+                    if let Some(st) = rf.get_struct_mut() {
+                        let rst = f.get_struct().expect("Fatal error, should not happen");
+
+                        if let Err(e) = __resolve_one_struct(st, rst) {
+                            return Err(e);
+                        }
+                    }
+                } else if rf.can_be_anytype() {
+                    rf.is_padding = true;
+                }
+            }
+
+            if index != len {
+                return Err(format!(
+                    "resolve AnalysisStruct fail, {:?} info not match",
+                    name
+                ));
+            }
+
+            ast.is_enum = false;
+            ast.is_union = false;
+            ast.name = name;
+
+            return Ok(());
+        }
+        RStructType::RUnion(_rst) => {
+            ast.is_enum = false;
+            ast.is_union = true;
+            ast.name = name;
+
+            return Ok(());
+        }
+        RStructType::REnum(_rst) => {
+            ast.is_enum = true;
+            ast.is_union = false;
+            ast.name = name;
+
+            return Ok(());
+        }
+    }
 }

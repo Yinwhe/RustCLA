@@ -6,49 +6,33 @@ use inkwell::{
 };
 
 #[derive(Debug)]
-pub struct Analysis<'ctx> {
-    pub info_structs: Vec<AnalysisStruct<'ctx>>,
-    pub raw_structs: Vec<AnalysisStruct<'ctx>>,
+pub struct Analysis {
+    pub structs: Vec<AnalysisStruct>,
     pub functions: Vec<AnalysisFunction>,
 }
 
-impl<'ctx> Analysis<'ctx> {
-    #[allow(unused)]
-    pub fn new(
-        info_structs: Vec<AnalysisStruct<'ctx>>,
-        raw_structs: Vec<AnalysisStruct<'ctx>>,
-    ) -> Self {
-        Self {
-            info_structs,
-            raw_structs,
-            functions: Vec::new(),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct AnalysisStruct<'ctx> {
-    pub is_raw: bool,
+pub struct AnalysisStruct {
     pub name: Option<String>,
-    pub is_union: Option<bool>,
-    pub is_enum: Option<bool>,
+    pub is_union: bool,
+    pub is_enum: bool,
 
-    pub fields: Vec<AnalysisField<'ctx>>,
+    pub fields: Vec<AnalysisField>,
     pub alignment: u32,
 }
 
 #[derive(Clone)]
-pub struct AnalysisField<'ctx> {
+pub struct AnalysisField {
     pub name: Option<String>,
-    pub is_padding: Option<bool>,
+    pub is_padding: bool,
 
-    pub ty: AnalysisFieldType<'ctx>,
+    pub ty: AnalysisFieldType,
     pub range: (u32, u32),
-    _inner: BasicTypeEnum<'ctx>,
+    // _inner: BasicTypeEnum,
 }
 
 #[derive(Debug, Clone)]
-pub enum AnalysisFieldType<'ctx> {
+pub enum AnalysisFieldType {
     /// A contiguous homogeneous container type.
     ArrayType,
     /// A floating point type.
@@ -58,12 +42,12 @@ pub enum AnalysisFieldType<'ctx> {
     /// A pointer type.
     PointerType,
     /// A contiguous heterogeneous container type.
-    StructType(AnalysisStruct<'ctx>),
+    StructType(AnalysisStruct),
     /// A contiguous homogeneous "SIMD" container type.
     VectorType,
 }
 
-impl<'ctx> AnalysisFieldType<'ctx> {
+impl AnalysisFieldType {
     pub fn get_type_id(&self) -> u32 {
         match self {
             AnalysisFieldType::ArrayType => 0,
@@ -76,9 +60,8 @@ impl<'ctx> AnalysisFieldType<'ctx> {
     }
 }
 
-
-impl<'ctx> AnalysisStruct<'ctx> {
-    pub fn from_ctx_raw(st: StructType<'ctx>, target_data: &TargetData) -> Self {
+impl AnalysisStruct {
+    pub fn from_ctx_raw(st: StructType, target_data: &TargetData) -> Self {
         let mut fields = Vec::new();
         let alignment = target_data.get_abi_alignment(&st);
 
@@ -92,30 +75,29 @@ impl<'ctx> AnalysisStruct<'ctx> {
 
             fields.push(AnalysisField {
                 name: None,
-                is_padding: None,
+                is_padding: false,
 
                 ty: fty,
                 range: (start, end),
-                _inner: ty,
+                // _inner: ty,
             });
         }
 
         Self {
-            is_raw: true,
             name: None,
-            is_union: None,
-            is_enum: None,
+            is_union: true,
+            is_enum: true,
 
             fields,
             alignment,
         }
     }
 
-    pub fn get_field(&self, index: usize) -> Option<&AnalysisField<'ctx>> {
+    pub fn get_field(&self, index: usize) -> Option<&AnalysisField> {
         self.fields.get(index)
     }
 
-    pub fn get_fields_iters(self) -> impl Iterator<Item = AnalysisField<'ctx>> {
+    pub fn get_fields_iters(self) -> impl Iterator<Item = AnalysisField> {
         self.fields.into_iter()
     }
 
@@ -123,19 +105,21 @@ impl<'ctx> AnalysisStruct<'ctx> {
         self.alignment
     }
 
-    fn get_type(ty: BasicTypeEnum<'ctx>, target_data: &TargetData) -> AnalysisFieldType<'ctx> {
+    fn get_type(ty: BasicTypeEnum, target_data: &TargetData) -> AnalysisFieldType {
         match ty {
             BasicTypeEnum::ArrayType(_) => AnalysisFieldType::ArrayType,
             BasicTypeEnum::FloatType(_) => AnalysisFieldType::FloatType,
             BasicTypeEnum::IntType(_) => AnalysisFieldType::IntType,
             BasicTypeEnum::PointerType(_) => AnalysisFieldType::PointerType,
-            BasicTypeEnum::StructType(st) => AnalysisFieldType::StructType(Self::from_ctx_raw(st, target_data)),
+            BasicTypeEnum::StructType(st) => {
+                AnalysisFieldType::StructType(Self::from_ctx_raw(st, target_data))
+            }
             BasicTypeEnum::VectorType(_) => AnalysisFieldType::VectorType,
         }
     }
 }
 
-impl Debug for AnalysisField<'_> {
+impl Debug for AnalysisField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -145,7 +129,7 @@ impl Debug for AnalysisField<'_> {
     }
 }
 
-impl<'ctx> AnalysisField<'ctx> {
+impl AnalysisField {
     pub fn get_size(&self) -> u32 {
         self.range.1 - self.range.0
     }
@@ -157,18 +141,16 @@ impl<'ctx> AnalysisField<'ctx> {
     pub fn can_be_anytype(&self) -> bool {
         // We assume padding and opaque types
         // can be any types.
-        self._inner.is_array_type()
+        self.ty.get_type_id() == 0
     }
 
-    pub fn get_struct_mut(&mut self) -> Option<&mut AnalysisStruct<'ctx>> {
+    pub fn get_struct_mut(&mut self) -> Option<&mut AnalysisStruct> {
         match &mut self.ty {
             AnalysisFieldType::StructType(st) => Some(st),
             _ => None,
         }
     }
-
 }
-
 
 #[derive(Debug, Clone)]
 pub struct AnalysisFunction {
@@ -177,31 +159,35 @@ pub struct AnalysisFunction {
     pub ret: Option<AnalysisParameters>,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct AnalysisParameters {
     pub name: Option<String>,
     pub pass_by: AnalysisPassBy,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AnalysisPassBy {
     Value,
     PointerOrReference,
 }
 
-
 #[derive(Debug)]
-pub struct AnalysisStructResult<'ctx> {
-    rst: AnalysisStruct<'ctx>,
-    cst: AnalysisStruct<'ctx>,
+pub struct AnalysisStructResult {
+    rst: AnalysisStruct,
+    cst: AnalysisStruct,
+    infos: Vec<AnalysisResultContent>,
+}
+
+pub struct AnalsisFunctionResult {
+    rfunc: AnalysisFunction,
+    cfunc: AnalysisFunction,
     infos: Vec<AnalysisResultContent>,
 }
 
 #[derive(Debug)]
 pub struct AnalysisResultContent {
-    a_loc: usize,
-    b_loc: usize,
+    rloc: usize,
+    cloc: usize,
     level: AnalysisResultLevel,
     ty: AnalysisResultType,
     cont: String,
@@ -215,13 +201,20 @@ pub enum AnalysisResultLevel {
 
 #[derive(Debug)]
 pub enum AnalysisResultType {
+    // For struct
     AlignmentMismatch,
     SizeMismatch,
     TypeMismatch,
+
+    // For function
+    ArgsLengthMismatch,
+    ArgsPassByMismatch,
+    RetMismatch,
+    RetPassByMismatch
 }
 
-impl<'ctx> AnalysisStructResult<'ctx> {
-    pub fn new(rst: AnalysisStruct<'ctx>, cst: AnalysisStruct<'ctx>) -> Self {
+impl AnalysisStructResult {
+    pub fn new(rst: AnalysisStruct, cst: AnalysisStruct) -> Self {
         Self {
             rst,
             cst,
@@ -237,30 +230,56 @@ impl<'ctx> AnalysisStructResult<'ctx> {
         self.infos.iter()
     }
 
-    pub fn get_rst(&self) -> &AnalysisStruct<'ctx> {
+    pub fn get_rst(&self) -> &AnalysisStruct {
         &self.rst
     }
 
-    pub fn get_cst(&self) -> &AnalysisStruct<'ctx> {
+    pub fn get_cst(&self) -> &AnalysisStruct {
         &self.cst
     }
 }
 
-impl AnalysisResultContent {
-    pub fn warn(a_loc: usize, b_loc: usize, ty: AnalysisResultType, cont: String) -> Self {
+impl AnalsisFunctionResult {
+    pub fn new(rfunc: AnalysisFunction, cfunc: AnalysisFunction) -> Self {
         Self {
-            a_loc,
-            b_loc,
+            rfunc,
+            cfunc,
+            infos: Vec::new(),
+        }
+    }
+
+    pub fn add_info(&mut self, info: AnalysisResultContent) {
+        self.infos.push(info);
+    }
+
+    pub fn get_infos(&self) -> impl Iterator<Item = &AnalysisResultContent> {
+        self.infos.iter()
+    }
+
+    pub fn get_rfunc(&self) -> &AnalysisFunction {
+        &self.rfunc
+    }
+
+    pub fn get_cfunc(&self) -> &AnalysisFunction {
+        &self.cfunc
+    }
+}
+
+impl AnalysisResultContent {
+    pub fn warn(rloc: usize, cloc: usize, ty: AnalysisResultType, cont: String) -> Self {
+        Self {
+            rloc,
+            cloc,
             level: AnalysisResultLevel::Warn,
             ty,
             cont,
         }
     }
 
-    pub fn error(a_loc: usize, b_loc: usize, ty: AnalysisResultType, cont: String) -> Self {
+    pub fn error(rloc: usize, cloc: usize, ty: AnalysisResultType, cont: String) -> Self {
         Self {
-            a_loc,
-            b_loc,
+            rloc,
+            cloc,
             level: AnalysisResultLevel::Error,
             ty,
             cont,

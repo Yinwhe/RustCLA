@@ -11,14 +11,14 @@ use log::{debug, warn};
 
 use crate::{
     types::{CInfo, CollectError},
-    CField, CFunction, CStruct, CType, TypeDef,
+    CField, CFunction, CStruct, CType,
 };
 
 pub struct Resolver {
     ctx: BindgenContext,
     structs: HashMap<String, CStruct>,
     funcs: HashMap<String, CFunction>,
-    typedefs: HashMap<String, TypeDef>,
+    // typedefs: HashMap<String, TypeDef>,
 }
 
 impl Resolver {
@@ -31,7 +31,7 @@ impl Resolver {
             ctx,
             structs: HashMap::new(),
             funcs: HashMap::new(),
-            typedefs: HashMap::new(),
+            // typedefs: HashMap::new(),
         })
     }
 
@@ -50,22 +50,6 @@ impl Resolver {
                     }
                     // println!("{:?} {:#?}", _item_id, ty);
                     match ty.kind() {
-                        TypeKind::Alias(alias) => {
-                            if let Some(ctype) = self.resolve_alias(alias) {
-                                let name = ty.name().expect("Alais get name fails").to_string();
-                                // println!("Alias: {} {:?}", name, ctype);
-                                self.typedefs.insert(
-                                    name.clone(),
-                                    TypeDef {
-                                        name,
-                                        aliased: ctype,
-                                    },
-                                );
-                            } else {
-                                // TODO
-                                warn!("Alias resolve fails: {:?}", ty);
-                            }
-                        }
                         TypeKind::Comp(st) => {
                             if let Some(name) = ty.name() {
                                 if let Some(mut cstruct) = self.resolve_struct(st) {
@@ -79,11 +63,11 @@ impl Resolver {
                             // else is anonymous struct, shall not be exported
                         }
                         // TypeKind::Enum(e) => {
-                        // println!("Enum {:#?}", e);
+                        //     println!("Enum {:#?}", e);
                         // }
-                        TypeKind::Opaque => {
-                            // unreachable!("what is this?")
-                        }
+                        // TypeKind::Opaque => {
+                        //     println!("Opaque");
+                        // }
                         _ => continue,
                     }
                 }
@@ -94,10 +78,8 @@ impl Resolver {
                         continue;
                     }
                     let name = func.name().to_owned();
-                    let mangled_name = func.mangled_name().map(|s| s.to_owned());
                     let mut cfunc = CFunction {
                         name,
-                        mangled_name,
                         args: Vec::new(),
                         ret: None,
                     };
@@ -115,14 +97,14 @@ impl Resolver {
             }
         }
 
-        debug!("{:#?}", self.typedefs);
+        // debug!("{:#?}", self.typedefs);
         debug!("{:#?}", self.structs);
         debug!("{:#?}", self.funcs);
 
         Ok(CInfo {
             structs: self.structs.drain().map(|(_k, v)| v).collect(),
             funcs: self.funcs.drain().map(|(_k, v)| v).collect(),
-            typedefs: self.typedefs.drain().map(|(_k, v)| v).collect(),
+            // typedefs: self.typedefs.drain().map(|(_k, v)| v).collect(),
         })
     }
 
