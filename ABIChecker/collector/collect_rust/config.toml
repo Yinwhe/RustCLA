@@ -61,7 +61,7 @@ aligned_n = "__attribute__ ((aligned(n)))"
 
 
 [export]
-include = ["M"]
+include = []
 exclude = []
 # prefix = "CAPI_"
 item_types = []

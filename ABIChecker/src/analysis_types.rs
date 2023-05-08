@@ -9,7 +9,7 @@ use inkwell::{
 pub struct Analysis<'ctx> {
     pub info_structs: Vec<AnalysisStruct<'ctx>>,
     pub raw_structs: Vec<AnalysisStruct<'ctx>>,
-    // pub info_functions: Vec<AnalysisFunction>,
+    pub functions: Vec<AnalysisFunction>,
 }
 
 impl<'ctx> Analysis<'ctx> {
@@ -20,7 +20,7 @@ impl<'ctx> Analysis<'ctx> {
         Self {
             info_structs,
             raw_structs,
-            // info_functions: Vec::new(),
+            functions: Vec::new(),
         }
     }
 }
@@ -179,6 +179,28 @@ impl<'ctx> AnalysisField<'ctx> {
         }
     }
 }
+
+
+#[derive(Debug, Clone)]
+pub struct AnalysisFunction {
+    pub name: String,
+    pub params: Vec<AnalysisParameters>,
+    pub ret: Option<AnalysisParameters>,
+}
+
+
+#[derive(Debug, Clone)]
+pub struct AnalysisParameters {
+    pub name: Option<String>,
+    pub pass_by: AnalysisPassBy,
+}
+
+#[derive(Debug, Clone)]
+pub enum AnalysisPassBy {
+    Value,
+    PointerOrReference,
+}
+
 
 #[derive(Debug)]
 pub struct AnalysisResult<'ctx> {

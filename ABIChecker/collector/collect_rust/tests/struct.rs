@@ -37,3 +37,8 @@ pub struct T {
     a: i32,
     b: A
 }
+
+#[no_mangle]
+pub extern "C" fn root() {
+
+}

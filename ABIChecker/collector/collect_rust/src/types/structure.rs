@@ -9,6 +9,16 @@ pub enum RStructType {
     RUnion(RUnion)
 }
 
+impl  RStructType {
+    pub fn get_name(&self) -> Option<&str> {
+        match self {
+            RStructType::RStruct(rst) => rst.name.as_deref(),
+            RStructType::REnum(re) => re.name.as_deref(),
+            RStructType::RUnion(ru) => ru.name.as_deref(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct RStruct {
     pub name: Option<String>,
@@ -29,6 +39,16 @@ impl RStruct {
 pub struct RField {
     pub name: Option<String>,
     pub ty: RType,
+}
+
+impl RField {
+    pub fn get_struct(&self) -> Option<&RStructType> {
+        if let RType::StructType(st) = &self.ty {
+            Some(st)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug)]

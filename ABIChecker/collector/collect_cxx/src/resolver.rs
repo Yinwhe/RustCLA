@@ -7,7 +7,7 @@ use bindgen_cxx_parser::{
     ty::{Type, TypeKind},
     BindgenError,
 };
-use log::{warn, debug};
+use log::{debug, warn};
 
 use crate::{
     types::{CInfo, CollectError},
@@ -82,12 +82,8 @@ impl Resolver {
                         // println!("Enum {:#?}", e);
                         // }
                         TypeKind::Opaque => {
-                            unreachable!("what is this?")
+                            // unreachable!("what is this?")
                         }
-                        // TypeKind::Function(f) => {
-                        //     println!("Function 1 {:#?}", f);
-                        //     unreachable!("what is this?")
-                        // }
                         _ => continue,
                     }
                 }
@@ -98,8 +94,10 @@ impl Resolver {
                         continue;
                     }
                     let name = func.name().to_owned();
+                    let mangled_name = func.mangled_name().map(|s| s.to_owned());
                     let mut cfunc = CFunction {
                         name,
+                        mangled_name,
                         args: Vec::new(),
                         ret: None,
                     };
@@ -219,7 +217,6 @@ impl Resolver {
         }
     }
 }
-
 
 /// Use `bindgen` parser to parse cxx codes
 fn bindgen_parse_one(file: &str, clang_args: &[&str]) -> Result<BindgenContext, BindgenError> {

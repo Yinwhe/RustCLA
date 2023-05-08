@@ -3,13 +3,14 @@
 version = 3
 
 [[package]]
-name = "ABIChecker"
+name = "abi_checker"
 version = "0.1.0"
 dependencies = [
  "ansi_term",
  "collect_rust",
  "inkwell",
  "lazy_static",
+ "log",
  "serde",
  "serde_json",
 ]

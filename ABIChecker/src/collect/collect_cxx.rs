@@ -1,9 +1,10 @@
 use std::{
+    collections::HashMap,
     process::Command,
     sync::{Arc, Mutex},
 };
 
-use inkwell::{context::Context, module::Module, targets::TargetData};
+use inkwell::{context::Context, module::Module, targets::TargetData, values::FunctionValue};
 use lazy_static::lazy_static;
 
 use crate::{analysis_types::*, target::host_target};
@@ -34,11 +35,12 @@ pub fn collect_info_from_cpp_file<'cx>(
     } else {
         return Err(format!(
             "collect info from cpp file fails, due to {:?}",
-            res.stderr
+            String::from_utf8_lossy(&res.stderr)
         ));
     };
 
     generate_bcfile(file)?;
+    let map = collect_mangles()?;
 
     // parse bc code
     let module = match Module::parse_bitcode_from_path("cpp.bc", cx) {
@@ -55,13 +57,14 @@ pub fn collect_info_from_cpp_file<'cx>(
     let mut raw_structs = Vec::new();
 
     for cst in cinfo.structs {
-        match resolve_one(cst, &module, target_machine.get_target_data()) {
+        match resolve_one_struct(cst, &module, target_machine.get_target_data()) {
             Ok(st) => {
                 // resolve ok
                 info_structs.push(st);
             }
             Err((msg, None)) => { // rersolve error
-                 // TODO
+
+                // TODO
             }
             Err((msg, Some(st))) => {
                 // resolve fail, but raw struct is ok
@@ -71,11 +74,31 @@ pub fn collect_info_from_cpp_file<'cx>(
         }
     }
 
-    // TODO: deal with functions
+    let mut functions = Vec::new();
+
+    // deal with functions
+    for cfunc in cinfo.funcs {
+        if let Some(Some(funcv)) = map
+            .get(&cfunc.name)
+            .map(|mangled| module.get_function(mangled))
+        {
+            match resolve_one_func(cfunc, &funcv) {
+                Ok(func) => {
+                    functions.push(func);
+                }
+                Err(msg) => {
+                    // TODO
+                }
+            }
+        } else {
+            // TODO
+        }
+    }
 
     Ok(Analysis {
         info_structs,
         raw_structs,
+        functions,
     })
     // unimplemented!()
 }
@@ -93,7 +116,56 @@ fn generate_bcfile(file: &str) -> Result<(), String> {
     }
 }
 
-fn resolve_one<'ctx>(
+fn collect_mangles() -> Result<HashMap<String, String>, String> {
+    let ori = Command::new("llvm-nm")
+        .args(["-C", "cpp.bc"])
+        .output()
+        .expect("failed to execute process");
+
+    let mangled = Command::new("llvm-nm")
+        .args(["cpp.bc"])
+        .output()
+        .expect("failed to execute process");
+
+    if !ori.status.success() || !mangled.status.success() {
+        return Err(format!(
+            "collect mangles fails, due to {}, {}",
+            String::from_utf8_lossy(&ori.stderr),
+            String::from_utf8_lossy(&mangled.stderr)
+        ));
+    }
+
+    let mut map = HashMap::new();
+
+    let ori = String::from_utf8_lossy(&ori.stdout);
+    let ori: Vec<&str> = ori.split('\n').filter(|s| !s.is_empty()).collect();
+
+    let mangled = String::from_utf8_lossy(&mangled.stdout);
+    let mangled: Vec<&str> = mangled.split('\n').filter(|s| !s.is_empty()).collect();
+
+    assert!(ori.len() == mangled.len());
+
+    for i in 0..ori.len() {
+        map.insert(
+            ori[i]
+                .split(' ')
+                .last()
+                .unwrap()
+                .trim_end_matches("()")
+                .to_string(),
+            mangled[i]
+                .split(' ')
+                .last()
+                .unwrap()
+                .trim_end_matches("()")
+                .to_string(),
+        );
+    }
+
+    Ok(map)
+}
+
+fn resolve_one_struct<'ctx>(
     cst: CStruct,
     module: &Module<'ctx>,
     target_data: TargetData,
@@ -144,7 +216,7 @@ fn resolve_one<'ctx>(
 
         let mut ast = AnalysisStruct::from_ctx_raw(struct_type, &target_data);
 
-        if let Err(e) = resolve_struct(&mut ast, &cst) {
+        if let Err(e) = __resolve_one_struct(&mut ast, &cst) {
             return Err((e, Some(ast)));
         } else {
             return Ok(ast);
@@ -152,7 +224,7 @@ fn resolve_one<'ctx>(
     }
 }
 
-fn resolve_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), String> {
+fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), String> {
     let name = cst.name.clone().expect("Fatal error, should not happen");
 
     let mut index = 0;
@@ -176,8 +248,8 @@ fn resolve_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), String>
             // recursive resolve
             if let Some(st) = rf.get_struct_mut() {
                 let cst = f.get_struct().expect("Fatal error, should not happen");
-                
-                if let Err(e) = resolve_struct(st, cst) {
+
+                if let Err(e) = __resolve_one_struct(st, cst) {
                     return Err(e);
                 }
             }
@@ -199,4 +271,48 @@ fn resolve_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), String>
     ast.name = Some(name);
 
     return Ok(());
+}
+
+fn resolve_one_func(cfunc: CFunction, funcv: &FunctionValue) -> Result<AnalysisFunction, String> {
+    let name = cfunc.name;
+    let mut params = Vec::new();
+
+    // assert!(cfunc.args.len() == funcv.count_params() as usize);
+    for param in funcv.get_params() {
+        let p = if param.is_pointer_value() {
+            AnalysisParameters {
+                name: None,
+                pass_by: AnalysisPassBy::PointerOrReference,
+            }
+        } else {
+            AnalysisParameters {
+                name: None,
+                pass_by: AnalysisPassBy::Value,
+            }
+        };
+
+        params.push(p);
+    }
+
+    let ret = if let Some(retv) = funcv.get_type().get_return_type() {
+        if retv.is_pointer_type() {
+            Some(AnalysisParameters {
+                name: None,
+                pass_by: AnalysisPassBy::PointerOrReference,
+            })
+        } else {
+            Some(AnalysisParameters {
+                name: None,
+                pass_by: AnalysisPassBy::Value,
+            })
+        }
+    } else {
+        None
+    };
+
+    Ok(AnalysisFunction {
+        name,
+        params,
+        ret,
+    })
 }
