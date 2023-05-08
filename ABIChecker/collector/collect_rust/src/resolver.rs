@@ -154,7 +154,7 @@ impl Resolver {
     }
 
     fn resolve_function(&self, func: Function) -> Option<RFunction> {
-        print!("{:#?}", func);
+        // print!("{:#?}", func);
         let name = func.path.name().to_owned();
         let mangled_name = "".to_string();
         let mut args = Vec::new();

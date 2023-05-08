@@ -15,13 +15,10 @@ fn main() {
     let r_cx = Context::create();
     
     let cinfo = collect::collect_info_from_cpp_file("tests/test2/cpp.cc", None, None, &c_cx);
-    println!("{:#?}", cinfo);
-    let rinfo = collect::collect_info_from_rust_file("tests/test2/rust.rs", &r_cx);
-    println!("{:#?}", rinfo);
-
     // println!("{:#?}", cinfo);
+    let rinfo = collect::collect_info_from_rust_file("tests/test2/rust.rs", &r_cx);
     // println!("{:#?}", rinfo);
-    
+
 
     // let mut map = HashMap::new();
     // for st in cinfo.info_structs {

@@ -1,4 +1,4 @@
-use inkwell::{context::Context, module::Module, targets::*, OptimizationLevel};
+use inkwell::{targets::*, OptimizationLevel};
 
 pub fn host_target() -> TargetMachine {
     Target::initialize_native(&InitializationConfig::default())

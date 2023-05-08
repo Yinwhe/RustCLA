@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     process::Command,
     sync::{Arc, Mutex},
 };
@@ -9,7 +8,7 @@ use lazy_static::lazy_static;
 
 use crate::{analysis_types::*, target::host_target};
 
-use super::ctypes::*;
+use super::{ctypes::*, helper::collect_mangles};
 
 const COLLECT_CXX: &str = "collector/collect_cxx/collect_cxx";
 
@@ -40,7 +39,6 @@ pub fn collect_info_from_cpp_file<'cx>(
     };
 
     generate_bcfile(file)?;
-    let map = collect_mangles()?;
 
     // parse bc code
     let module = match Module::parse_bitcode_from_path("cpp.bc", cx) {
@@ -71,12 +69,19 @@ pub fn collect_info_from_cpp_file<'cx>(
                 // TODO
                 raw_structs.push(st);
             }
-        }
+        }   
     }
 
+    // deal with functions
     let mut functions = Vec::new();
 
-    // deal with functions
+    let names: Vec<String> = module
+        .get_functions()
+        .map(|f| f.get_name().to_string_lossy().into_owned())
+        .collect();
+    let map = collect_mangles(names);
+
+
     for cfunc in cinfo.funcs {
         if let Some(Some(funcv)) = map
             .get(&cfunc.name)
@@ -100,7 +105,6 @@ pub fn collect_info_from_cpp_file<'cx>(
         raw_structs,
         functions,
     })
-    // unimplemented!()
 }
 
 fn generate_bcfile(file: &str) -> Result<(), String> {
@@ -114,55 +118,6 @@ fn generate_bcfile(file: &str) -> Result<(), String> {
     } else {
         Err(format!("generate bc file fails, due to {:?}", res.stderr))
     }
-}
-
-fn collect_mangles() -> Result<HashMap<String, String>, String> {
-    let ori = Command::new("llvm-nm")
-        .args(["-C", "cpp.bc"])
-        .output()
-        .expect("failed to execute process");
-
-    let mangled = Command::new("llvm-nm")
-        .args(["cpp.bc"])
-        .output()
-        .expect("failed to execute process");
-
-    if !ori.status.success() || !mangled.status.success() {
-        return Err(format!(
-            "collect mangles fails, due to {}, {}",
-            String::from_utf8_lossy(&ori.stderr),
-            String::from_utf8_lossy(&mangled.stderr)
-        ));
-    }
-
-    let mut map = HashMap::new();
-
-    let ori = String::from_utf8_lossy(&ori.stdout);
-    let ori: Vec<&str> = ori.split('\n').filter(|s| !s.is_empty()).collect();
-
-    let mangled = String::from_utf8_lossy(&mangled.stdout);
-    let mangled: Vec<&str> = mangled.split('\n').filter(|s| !s.is_empty()).collect();
-
-    assert!(ori.len() == mangled.len());
-
-    for i in 0..ori.len() {
-        map.insert(
-            ori[i]
-                .split(' ')
-                .last()
-                .unwrap()
-                .trim_end_matches("()")
-                .to_string(),
-            mangled[i]
-                .split(' ')
-                .last()
-                .unwrap()
-                .trim_end_matches("()")
-                .to_string(),
-        );
-    }
-
-    Ok(map)
 }
 
 fn resolve_one_struct<'ctx>(
@@ -310,9 +265,5 @@ fn resolve_one_func(cfunc: CFunction, funcv: &FunctionValue) -> Result<AnalysisF
         None
     };
 
-    Ok(AnalysisFunction {
-        name,
-        params,
-        ret,
-    })
+    Ok(AnalysisFunction { name, params, ret })
 }

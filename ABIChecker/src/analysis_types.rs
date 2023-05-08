@@ -13,6 +13,7 @@ pub struct Analysis<'ctx> {
 }
 
 impl<'ctx> Analysis<'ctx> {
+    #[allow(unused)]
     pub fn new(
         info_structs: Vec<AnalysisStruct<'ctx>>,
         raw_structs: Vec<AnalysisStruct<'ctx>>,
@@ -166,18 +167,6 @@ impl<'ctx> AnalysisField<'ctx> {
         }
     }
 
-
-    pub fn type_match(a: &AnalysisField<'_>, b: &AnalysisField<'_>) -> bool {
-        if a.get_type_id() == b.get_type_id() {
-            true
-        } else {
-            if a.can_be_anytype() || b.can_be_anytype() {
-                true
-            } else {
-                false
-            }
-        }
-    }
 }
 
 
@@ -203,7 +192,7 @@ pub enum AnalysisPassBy {
 
 
 #[derive(Debug)]
-pub struct AnalysisResult<'ctx> {
+pub struct AnalysisStructResult<'ctx> {
     rst: AnalysisStruct<'ctx>,
     cst: AnalysisStruct<'ctx>,
     infos: Vec<AnalysisResultContent>,
@@ -231,7 +220,7 @@ pub enum AnalysisResultType {
     TypeMismatch,
 }
 
-impl<'ctx> AnalysisResult<'ctx> {
+impl<'ctx> AnalysisStructResult<'ctx> {
     pub fn new(rst: AnalysisStruct<'ctx>, cst: AnalysisStruct<'ctx>) -> Self {
         Self {
             rst,

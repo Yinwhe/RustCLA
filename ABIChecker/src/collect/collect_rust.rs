@@ -1,8 +1,8 @@
-use std::{collections::HashMap, process::Command};
+use std::process::Command;
 
 use inkwell::{context::Context, module::Module, targets::TargetData, values::FunctionValue};
 
-use crate::{analysis_types::*, target::host_target};
+use crate::{analysis_types::*, collect::helper::collect_mangles, target::host_target};
 
 use collect_rust::{parse, RFunction, RStructType};
 
@@ -17,7 +17,6 @@ pub fn collect_info_from_rust_file<'cx>(
     };
 
     generate_bcfile(file)?;
-    let map = collect_mangles()?;
 
     // parse bc code
     let module = match Module::parse_bitcode_from_path("rust.bc", cx) {
@@ -52,6 +51,11 @@ pub fn collect_info_from_rust_file<'cx>(
 
     // deal with functions
     let mut functions = Vec::new();
+    let names: Vec<String> = module
+        .get_functions()
+        .map(|f| f.get_name().to_string_lossy().into_owned())
+        .collect();
+    let map = collect_mangles(names);
 
     for rfunc in rinfo.funcs {
         if let Some(Some(funcv)) = map
@@ -91,57 +95,8 @@ fn generate_bcfile(file: &str) -> Result<(), String> {
     }
 }
 
-fn collect_mangles() -> Result<HashMap<String, String>, String> {
-    let ori = Command::new("llvm-nm")
-        .args(["-C", "rust.bc"])
-        .output()
-        .expect("failed to execute process");
-
-    let mangled = Command::new("llvm-nm")
-        .args(["rust.bc"])
-        .output()
-        .expect("failed to execute process");
-
-    if !ori.status.success() || !mangled.status.success() {
-        return Err(format!(
-            "collect mangles fails, due to {}, {}",
-            String::from_utf8_lossy(&ori.stderr),
-            String::from_utf8_lossy(&mangled.stderr)
-        ));
-    }
-
-    let mut map = HashMap::new();
-
-    let ori = String::from_utf8_lossy(&ori.stdout);
-    let ori: Vec<&str> = ori.split('\n').filter(|s| !s.is_empty()).collect();
-
-    let mangled = String::from_utf8_lossy(&mangled.stdout);
-    let mangled: Vec<&str> = mangled.split('\n').filter(|s| !s.is_empty()).collect();
-
-    assert!(ori.len() == mangled.len());
-
-    for i in 0..ori.len() {
-        map.insert(
-            ori[i]
-                .split(' ')
-                .last()
-                .unwrap()
-                .trim_end_matches("()")
-                .to_string(),
-            mangled[i]
-                .split(' ')
-                .last()
-                .unwrap()
-                .trim_end_matches("()")
-                .to_string(),
-        );
-    }
-
-    Ok(map)
-}
-
 fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(), String> {
-    let name = ast.name.clone().expect("Should not happen");
+    let name = ast.name.clone();
 
     match rst {
         RStructType::RStruct(rst) => {
@@ -178,7 +133,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(
 
             if index != len {
                 return Err(format!(
-                    "resolve AnalysisStruct fail, {} info not match",
+                    "resolve AnalysisStruct fail, {:?} info not match",
                     name
                 ));
             }
@@ -186,7 +141,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(
             ast.is_raw = false;
             ast.is_enum = Some(false);
             ast.is_union = Some(false);
-            ast.name = Some(name);
+            ast.name = name;
 
             return Ok(());
         }
@@ -194,7 +149,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(
             ast.is_raw = false;
             ast.is_enum = Some(false);
             ast.is_union = Some(true);
-            ast.name = Some(name);
+            ast.name = name;
 
             return Ok(());
         }
@@ -202,7 +157,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(
             ast.is_raw = false;
             ast.is_enum = Some(true);
             ast.is_union = Some(false);
-            ast.name = Some(name);
+            ast.name = name;
 
             return Ok(());
         }
@@ -240,6 +195,8 @@ fn resolve_one_struct<'ctx>(
     if let Err(e) = __resolve_one_struct(&mut ast, &rst) {
         return Err((e, Some(ast)));
     };
+
+    ast.name = Some(name.to_string());
 
     Ok(ast)
 }

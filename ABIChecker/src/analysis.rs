@@ -1,39 +1,10 @@
 use crate::analysis_types::*;
-use inkwell::{module::Module, targets::TargetData, types::BasicTypeEnum, types::StructType};
-use std::collections::HashMap;
-
-// pub fn analysis_struct(rm: Module, cm: Module, rinfo: RInfo, cinfo: CInfo) {
-//     let mut rust_struct = HashMap::new();
-//     let mut cpp_struct = HashMap::new();
-
-//     for rs in rinfo.structs {
-//         let s = match rm.get_struct_type(&rs.name) {
-//             Some(s) => s,
-//             None => continue,
-//         };
-
-//         rust_struct.insert(rs.name, s);
-//     }
-
-//     for cs in cinfo.structs {
-//         let s = match cm.get_struct_type(&format!("class.{}", cs.name)) {
-//             Some(s) => s,
-//             None => match cm.get_struct_type(&format!("struct.{}", cs.name)) {
-//                 Some(s) => s,
-//                 None => continue,
-//             },
-//         };
-
-//         cpp_struct.insert(cs.name, s);
-//     }
-// }
 
 /// Three parts: align, size, type
 pub fn info_struct_analysis<'ctx>(
     rstruct: AnalysisStruct<'ctx>,
     cstruct: AnalysisStruct<'ctx>,
-    target_data: TargetData,
-) -> AnalysisResult<'ctx> {
+) -> AnalysisStructResult<'ctx> {
     assert!(rstruct.is_raw == false && cstruct.is_raw == false);
 
     println!("Debug:\nrstruct: {:?}\n cstruct: {:?}\n", rstruct, cstruct);
@@ -44,7 +15,7 @@ pub fn info_struct_analysis<'ctx>(
     }
 
     let mut status = AnalysisStatus::Match;
-    let mut result = AnalysisResult::new(rstruct.clone(), cstruct.clone());
+    let mut result = AnalysisStructResult::new(rstruct.clone(), cstruct.clone());
 
     // Check struct align first
     if rstruct.get_alignment() != cstruct.get_alignment() {
@@ -213,6 +184,14 @@ pub fn info_struct_analysis<'ctx>(
         } else {
         }
     }
+
+    unimplemented!()
+}
+
+pub fn function_analysis(
+    rfunc: AnalysisFunction,
+    cfunc: AnalysisFunction,
+)  {
 
     unimplemented!()
 }

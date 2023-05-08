@@ -1,5 +1,6 @@
 mod collect_cxx;
 mod collect_rust;
+mod helper;
 mod ctypes;
 
 pub use self::collect_cxx::collect_info_from_cpp_file;
