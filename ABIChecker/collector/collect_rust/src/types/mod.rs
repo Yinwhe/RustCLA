@@ -18,16 +18,6 @@ pub struct RInfo {
     // pub typedefs: Vec<TypeDef>,
 }
 
-impl RInfo {
-    pub fn empty () -> Self {
-        Self {
-            structs: Vec::new(),
-            funcs: Vec::new(),
-            // typedefs: Vec::new(),
-        }
-    }
-}
-
 #[cfg(feature = "my_crate")]
 #[derive(Debug)]
 pub enum CollectError {

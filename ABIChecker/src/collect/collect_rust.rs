@@ -2,7 +2,7 @@ use inkwell::{context::Context, module::Module, targets::TargetData, values::Fun
 use std::process::Command;
 
 use super::{helper::collect_mangles, rtypes::*};
-use crate::{analysis_types::*, target::host_target, RUSTC};
+use crate::{analysis_types::*, target::host_target, RUSTC, HOME};
 
 const COLLECT_RUST: &str = "$HOME/.abi_checker/collect_rust";
 
@@ -25,7 +25,7 @@ pub fn collect_info_from_rust_file(file: &str, cx: &Context) -> Result<Analysis,
     generate_bcfile(file)?;
 
     // parse bc code
-    let module = match Module::parse_bitcode_from_path("rust.bc", cx) {
+    let module = match Module::parse_bitcode_from_path(format!("{HOME}/.abi_checker/rust.bc"), cx) {
         Ok(m) => m,
         Err(e) => {
             return Err(format!("parse bitcode from path fails, due to {:?}", e));
@@ -43,8 +43,10 @@ pub fn collect_info_from_rust_file(file: &str, cx: &Context) -> Result<Analysis,
                 // resolve ok
                 structs.push(st);
             }
-            Err(msg) => { // rersolve error
-                 // TODO
+            Err(msg) => {
+                // rersolve error
+                // TODO
+                warn!("collect rust struct fails: {:?}", msg);
             }
         }
     }
@@ -68,10 +70,12 @@ pub fn collect_info_from_rust_file(file: &str, cx: &Context) -> Result<Analysis,
                 }
                 Err(msg) => {
                     // TODO
+                    warn!("collect rust function fails: {:?}", msg);
                 }
             }
         } else {
             // TODO
+            warn!("collect rust function fails: func {} not found in binarycode", rfunc.name);
         }
     }
 
@@ -139,33 +143,19 @@ fn resolve_one_func(rfunc: RFunction, funcv: &FunctionValue) -> Result<AnalysisF
 
     // assert!(cfunc.args.len() == funcv.count_params() as usize);
     for param in funcv.get_params() {
-        let p = if param.is_pointer_value() {
-            AnalysisParameters {
-                name: None,
-                pass_by: AnalysisPassBy::PointerOrReference,
-            }
-        } else {
-            AnalysisParameters {
-                name: None,
-                pass_by: AnalysisPassBy::Value,
-            }
+        let p = AnalysisParameters {
+            name: None,
+            ty: param.get_type().into(),
         };
 
         params.push(p);
     }
 
     let ret = if let Some(retv) = funcv.get_type().get_return_type() {
-        if retv.is_pointer_type() {
-            Some(AnalysisParameters {
-                name: None,
-                pass_by: AnalysisPassBy::PointerOrReference,
-            })
-        } else {
-            Some(AnalysisParameters {
-                name: None,
-                pass_by: AnalysisPassBy::Value,
-            })
-        }
+        Some(AnalysisParameters {
+            name: None,
+            ty: retv.into(),
+        })
     } else {
         None
     };

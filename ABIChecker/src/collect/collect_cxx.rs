@@ -1,10 +1,9 @@
 use std::process::Command;
 
 use inkwell::{context::Context, module::Module, targets::TargetData, values::FunctionValue};
-use lazy_static::lazy_static;
 
 use super::{ctypes::*, helper::collect_mangles};
-use crate::{analysis_types::*, target::host_target, CLANG};
+use crate::{analysis_types::*, target::host_target, CLANG, HOME};
 
 const COLLECT_CXX: &str = "$HOME/.abi_checker/collect_cxx";
 
@@ -29,11 +28,11 @@ pub fn collect_info_from_cpp_file<'cx>(
             String::from_utf8_lossy(&res.stderr)
         ));
     };
-
+    
     generate_bcfile(file)?;
 
     // parse bc code
-    let module = match Module::parse_bitcode_from_path("cpp.bc", cx) {
+    let module = match Module::parse_bitcode_from_path(format!("{HOME}/.abi_checker/cpp.bc"), cx) {
         Ok(m) => m,
         Err(e) => {
             return Err(format!("parse bitcode from path fails, due to {:?}", e));
@@ -52,7 +51,7 @@ pub fn collect_info_from_cpp_file<'cx>(
                 structs.push(st);
             }
             Err(msg) => { // rersolve error
-
+                warn!("collect cpp struct info fails: {:?}", msg);
                 // TODO
             }
         }
@@ -78,10 +77,12 @@ pub fn collect_info_from_cpp_file<'cx>(
                 }
                 Err(msg) => {
                     // TODO
+                    warn!("collect cpp function info fails: {:?}", msg);
                 }
             }
         } else {
             // TODO
+            warn!("collect cpp function fails: func {} not found in binarycode", cfunc.name);
         }
     }
 
@@ -92,7 +93,10 @@ fn generate_bcfile(file: &str) -> Result<(), String> {
     let res = Command::new("sh")
         .args(&[
             "-c",
-            &format!("{} -c -emit-llvm -o $HOME/.abi_checker/cpp.bc {}", CLANG, file),
+            &format!(
+                "{} -c -emit-llvm -o $HOME/.abi_checker/cpp.bc {}",
+                CLANG, file
+            ),
         ])
         .output()
         .expect("failed to execute process");
@@ -215,33 +219,19 @@ fn resolve_one_func(cfunc: CFunction, funcv: &FunctionValue) -> Result<AnalysisF
 
     // assert!(cfunc.args.len() == funcv.count_params() as usize);
     for param in funcv.get_params() {
-        let p = if param.is_pointer_value() {
-            AnalysisParameters {
-                name: None,
-                pass_by: AnalysisPassBy::PointerOrReference,
-            }
-        } else {
-            AnalysisParameters {
-                name: None,
-                pass_by: AnalysisPassBy::Value,
-            }
+        let p = AnalysisParameters {
+            name: None,
+            ty: param.get_type().into(),
         };
 
         params.push(p);
     }
 
     let ret = if let Some(retv) = funcv.get_type().get_return_type() {
-        if retv.is_pointer_type() {
-            Some(AnalysisParameters {
-                name: None,
-                pass_by: AnalysisPassBy::PointerOrReference,
-            })
-        } else {
-            Some(AnalysisParameters {
-                name: None,
-                pass_by: AnalysisPassBy::Value,
-            })
-        }
+        Some(AnalysisParameters {
+            name: None,
+            ty: retv.into(),
+        })
     } else {
         None
     };

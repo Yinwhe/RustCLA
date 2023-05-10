@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug};
 
 use inkwell::{
     targets::TargetData,
@@ -97,10 +97,6 @@ impl AnalysisStruct {
         self.fields.get(index).cloned()
     }
 
-    pub fn get_fields_iters(self) -> impl Iterator<Item = AnalysisField> {
-        self.fields.into_iter()
-    }
-
     pub fn get_alignment(&self) -> u32 {
         self.alignment
     }
@@ -122,6 +118,16 @@ impl AnalysisStruct {
         }
     }
 
+    pub fn get_fields_from_range(&self, start: u32, end: u32) -> Vec<AnalysisField> {
+        let mut fields = Vec::new();
+        for f in &self.fields {
+            if f.range.0 <= end && f.range.1 >= start {
+                fields.push(f.clone());
+            }
+        }
+        fields
+    }
+
     fn get_type(ty: BasicTypeEnum, target_data: &TargetData) -> AnalysisFieldType {
         match ty {
             BasicTypeEnum::ArrayType(_) => AnalysisFieldType::ArrayType,
@@ -138,11 +144,22 @@ impl AnalysisStruct {
 
 impl Debug for AnalysisField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{{ type: {:#?}, range: ({}, {}), name: {:?}, is_padding: {:?}}}",
-            self.ty, self.range.0, self.range.1, self.name, self.is_padding
-        )
+        let tys = match &self.ty {
+            AnalysisFieldType::FloatType => "FloatType".to_string(),
+            AnalysisFieldType::ArrayType => "ArrayType".to_string(),
+            AnalysisFieldType::IntType => "IntType".to_string(),
+            AnalysisFieldType::PointerType => "PointerType".to_string(),
+            AnalysisFieldType::VectorType => "VectorType".to_string(),
+            AnalysisFieldType::StructType(st) => format!("StructType {:?}", st.fields),
+        };
+
+        let name = if let Some(name) = &self.name {
+            name
+        } else {
+            ""
+        };
+
+        write!(f, "{}({} {}~{})", name, tys, self.range.0, self.range.1)
     }
 }
 
@@ -173,15 +190,18 @@ impl AnalysisField {
         }
     }
 
+    #[allow(unused)]
     pub fn is_normal(&self) -> bool {
         let id = self.get_type_id();
         id == 1 || id == 2 || id == 3 || id == 5
     }
 
+    #[allow(unused)]
     pub fn is_struct(&self) -> bool {
         self.get_type_id() == 4
     }
 
+    #[allow(unused)]
     pub fn is_array(&self) -> bool {
         self.get_type_id() == 0
     }
@@ -197,35 +217,69 @@ pub struct AnalysisFunction {
 #[derive(Debug, Clone)]
 pub struct AnalysisParameters {
     pub name: Option<String>,
-    pub pass_by: AnalysisPassBy,
+    pub ty: AnalysisParametersType,
 }
 
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub enum AnalysisPassBy {
+//     Value,
+//     PointerOrReference,
+// }
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AnalysisPassBy {
-    Value,
-    PointerOrReference,
+pub enum AnalysisParametersType {
+    /// A contiguous homogeneous container type.
+    ArrayType,
+    /// A floating point type.
+    FloatType,
+    /// An integer type.
+    IntType,
+    /// A pointer type.
+    PointerType,
+    /// A contiguous heterogeneous container type.
+    StructType,
+    /// A contiguous homogeneous "SIMD" container type.
+    VectorType,
+}
+
+
+impl From<BasicTypeEnum<'_>> for AnalysisParametersType {
+    fn from(value: BasicTypeEnum) -> Self {
+        match value {
+            BasicTypeEnum::ArrayType(_) => AnalysisParametersType::ArrayType,
+            BasicTypeEnum::FloatType(_) => AnalysisParametersType::FloatType,
+            BasicTypeEnum::IntType(_) => AnalysisParametersType::IntType,
+            BasicTypeEnum::PointerType(_) => AnalysisParametersType::PointerType,
+            BasicTypeEnum::StructType(_) => AnalysisParametersType::StructType,
+            BasicTypeEnum::VectorType(_) => AnalysisParametersType::VectorType,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct AnalysisStructResult {
+    #[allow(unused)]
     rst: AnalysisStruct,
+    #[allow(unused)]
     cst: AnalysisStruct,
     infos: Vec<AnalysisResultContent>,
 }
 
 pub struct AnalsisFunctionResult {
+    #[allow(unused)]
     rfunc: AnalysisFunction,
+    #[allow(unused)]
     cfunc: AnalysisFunction,
     infos: Vec<AnalysisResultContent>,
 }
 
 #[derive(Debug, Clone)]
 pub struct AnalysisResultContent {
-    rloc: (u32, u32),
-    cloc: (u32, u32),
-    level: AnalysisResultLevel,
-    ty: AnalysisResultType,
-    cont: String,
+    pub rloc: (u32, u32),
+    pub cloc: (u32, u32),
+    pub level: AnalysisResultLevel,
+    pub ty: AnalysisResultType,
+    pub cont: String,
 }
 
 #[derive(Debug, Clone)]
@@ -243,9 +297,9 @@ pub enum AnalysisResultType {
 
     // For function
     ArgsLengthMismatch,
-    ArgsPassByMismatch,
-    RetMismatch,
-    RetPassByMismatch,
+    ArgsTypeMismatch,
+    RetVoidMismatch,
+    RetTypeMismatch,
 }
 
 impl AnalysisStructResult {
@@ -272,6 +326,10 @@ impl AnalysisStructResult {
     pub fn is_error(&self) -> bool {
         self.infos.iter().any(|info| info.is_error())
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.infos.is_empty()
+    }
 }
 
 impl AnalsisFunctionResult {
@@ -291,22 +349,19 @@ impl AnalsisFunctionResult {
         self.infos.iter()
     }
 
-    pub fn get_rfunc(&self) -> &AnalysisFunction {
-        &self.rfunc
+    #[allow(unused)]
+    pub fn is_error(&self) -> bool {
+        self.infos.iter().any(|info| info.is_error())
     }
 
-    pub fn get_cfunc(&self) -> &AnalysisFunction {
-        &self.cfunc
+    #[allow(unused)]
+    pub fn is_empty(&self) -> bool {
+        self.infos.is_empty()
     }
 }
 
 impl AnalysisResultContent {
-    pub fn warn(
-        rloc: (u32, u32),
-        cloc: (u32, u32),
-        ty: AnalysisResultType,
-        cont: String,
-    ) -> Self {
+    pub fn warn(rloc: (u32, u32), cloc: (u32, u32), ty: AnalysisResultType, cont: String) -> Self {
         Self {
             rloc,
             cloc,
@@ -316,12 +371,7 @@ impl AnalysisResultContent {
         }
     }
 
-    pub fn error(
-        rloc: (u32, u32),
-        cloc: (u32, u32),
-        ty: AnalysisResultType,
-        cont: String,
-    ) -> Self {
+    pub fn error(rloc: (u32, u32), cloc: (u32, u32), ty: AnalysisResultType, cont: String) -> Self {
         Self {
             rloc,
             cloc,
@@ -338,3 +388,9 @@ impl AnalysisResultContent {
         }
     }
 }
+
+// impl Display for AnalysisResultType {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
+//     }
+// }

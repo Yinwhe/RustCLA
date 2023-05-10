@@ -30,6 +30,7 @@ pub struct RStruct {
     // pub is_union: bool,
 }
 
+#[cfg(feature = "my_crate")]
 impl RStruct {
     pub fn set_name(&mut self, name: &str) {
         self.name = Some(name.to_owned())

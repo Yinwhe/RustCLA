@@ -5,7 +5,7 @@ pub fn info_struct_analysis(
     rstruct: AnalysisStruct,
     cstruct: AnalysisStruct,
 ) -> AnalysisStructResult {
-    println!("Debug:\nrstruct: {:?}\n cstruct: {:?}\n", rstruct, cstruct);
+    debug!("rstruct: {:?}\ncstruct: {:?}\n", rstruct, cstruct);
     enum AnalysisStatus {
         Match,
         RustRemain,
@@ -394,16 +394,16 @@ pub fn function_analysis(
         return result;
     }
 
-    // check arg passby
+    // check arg types
     for i in 0..rfunc.params.len() {
         let rp = &rfunc.params[i];
         let cp = &cfunc.params[i];
-        if rp.pass_by != cp.pass_by {
+        if rp.ty != cp.ty {
             result.add_info(AnalysisResultContent::error(
                 (i as u32, 0),
                 (i as u32, 0),
-                AnalysisResultType::ArgsPassByMismatch,
-                format!("Args passby mismatch"),
+                AnalysisResultType::ArgsTypeMismatch,
+                format!("Args type mismatch"),
             ));
         }
     }
@@ -415,12 +415,12 @@ pub fn function_analysis(
         let rr = rfunc.ret.unwrap();
         let cr = cfunc.ret.unwrap();
 
-        if rr.pass_by != cr.pass_by {
+        if rr.ty != cr.ty {
             result.add_info(AnalysisResultContent::error(
                 (0, 0),
                 (0, 0),
-                AnalysisResultType::RetPassByMismatch,
-                format!("Ret passby mismatch"),
+                AnalysisResultType::RetTypeMismatch,
+                format!("Ret type mismatch"),
             ));
         }
 
@@ -429,7 +429,7 @@ pub fn function_analysis(
         result.add_info(AnalysisResultContent::error(
             (0, 0),
             (0, 0),
-            AnalysisResultType::RetMismatch,
+            AnalysisResultType::RetVoidMismatch,
             format!("Ret type mismatch"),
         ));
 
