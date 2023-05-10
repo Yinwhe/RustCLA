@@ -28,7 +28,7 @@ pub struct AnalysisField {
 
     pub ty: AnalysisFieldType,
     pub range: (u32, u32),
-    // _inner: BasicTypeEnum,
+    pub temp: bool, // _inner: BasicTypeEnum,
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +79,7 @@ impl AnalysisStruct {
 
                 ty: fty,
                 range: (start, end),
-                // _inner: ty,
+                temp: false, // _inner: ty,
             });
         }
 
@@ -93,8 +93,8 @@ impl AnalysisStruct {
         }
     }
 
-    pub fn get_field(&self, index: usize) -> Option<&AnalysisField> {
-        self.fields.get(index)
+    pub fn get_field(&self, index: usize) -> Option<AnalysisField> {
+        self.fields.get(index).cloned()
     }
 
     pub fn get_fields_iters(self) -> impl Iterator<Item = AnalysisField> {
@@ -103,6 +103,23 @@ impl AnalysisStruct {
 
     pub fn get_alignment(&self) -> u32 {
         self.alignment
+    }
+
+    pub fn get_range(&self) -> (u32, u32) {
+        let start = self.fields.first().unwrap().range.0;
+        let end = self.fields.last().unwrap().range.1;
+
+        (start, end)
+    }
+
+    pub fn temp(fields: Vec<AnalysisField>) -> Self {
+        Self {
+            name: None,
+            is_union: false,
+            is_enum: false,
+            fields: fields,
+            alignment: 0,
+        }
     }
 
     fn get_type(ty: BasicTypeEnum, target_data: &TargetData) -> AnalysisFieldType {
@@ -139,9 +156,7 @@ impl AnalysisField {
     }
 
     pub fn can_be_anytype(&self) -> bool {
-        // We assume padding and opaque types
-        // can be any types.
-        self.ty.get_type_id() == 0
+        self.is_padding
     }
 
     pub fn get_struct_mut(&mut self) -> Option<&mut AnalysisStruct> {
@@ -149,6 +164,26 @@ impl AnalysisField {
             AnalysisFieldType::StructType(st) => Some(st),
             _ => None,
         }
+    }
+
+    pub fn get_struct(&self) -> Option<&AnalysisStruct> {
+        match &self.ty {
+            AnalysisFieldType::StructType(st) => Some(st),
+            _ => None,
+        }
+    }
+
+    pub fn is_normal(&self) -> bool {
+        let id = self.get_type_id();
+        id == 1 || id == 2 || id == 3 || id == 5
+    }
+
+    pub fn is_struct(&self) -> bool {
+        self.get_type_id() == 4
+    }
+
+    pub fn is_array(&self) -> bool {
+        self.get_type_id() == 0
     }
 }
 
@@ -184,22 +219,22 @@ pub struct AnalsisFunctionResult {
     infos: Vec<AnalysisResultContent>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AnalysisResultContent {
-    rloc: usize,
-    cloc: usize,
+    rloc: (u32, u32),
+    cloc: (u32, u32),
     level: AnalysisResultLevel,
     ty: AnalysisResultType,
     cont: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AnalysisResultLevel {
     Warn,
     Error,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AnalysisResultType {
     // For struct
     AlignmentMismatch,
@@ -210,7 +245,7 @@ pub enum AnalysisResultType {
     ArgsLengthMismatch,
     ArgsPassByMismatch,
     RetMismatch,
-    RetPassByMismatch
+    RetPassByMismatch,
 }
 
 impl AnalysisStructResult {
@@ -226,16 +261,16 @@ impl AnalysisStructResult {
         self.infos.push(info);
     }
 
-    pub fn get_infos(&self) -> impl Iterator<Item = &AnalysisResultContent> {
-        self.infos.iter()
+    pub fn get_info(&self) -> Vec<AnalysisResultContent> {
+        self.infos.clone()
     }
 
-    pub fn get_rst(&self) -> &AnalysisStruct {
-        &self.rst
+    pub fn merge(&mut self, res: &AnalysisStructResult) {
+        self.infos.extend(res.get_info())
     }
 
-    pub fn get_cst(&self) -> &AnalysisStruct {
-        &self.cst
+    pub fn is_error(&self) -> bool {
+        self.infos.iter().any(|info| info.is_error())
     }
 }
 
@@ -266,7 +301,12 @@ impl AnalsisFunctionResult {
 }
 
 impl AnalysisResultContent {
-    pub fn warn(rloc: usize, cloc: usize, ty: AnalysisResultType, cont: String) -> Self {
+    pub fn warn(
+        rloc: (u32, u32),
+        cloc: (u32, u32),
+        ty: AnalysisResultType,
+        cont: String,
+    ) -> Self {
         Self {
             rloc,
             cloc,
@@ -276,13 +316,25 @@ impl AnalysisResultContent {
         }
     }
 
-    pub fn error(rloc: usize, cloc: usize, ty: AnalysisResultType, cont: String) -> Self {
+    pub fn error(
+        rloc: (u32, u32),
+        cloc: (u32, u32),
+        ty: AnalysisResultType,
+        cont: String,
+    ) -> Self {
         Self {
             rloc,
             cloc,
             level: AnalysisResultLevel::Error,
             ty,
             cont,
+        }
+    }
+
+    pub fn is_error(&self) -> bool {
+        match self.level {
+            AnalysisResultLevel::Warn => false,
+            AnalysisResultLevel::Error => true,
         }
     }
 }

@@ -56,7 +56,6 @@ impl Resolver {
                                     cstruct.set_name(&name);
                                     self.structs.insert(name.to_owned(), cstruct);
                                 } else {
-                                    // TODO
                                     warn!("Struct resolve fails: {:?}", ty)
                                 }
                             }
@@ -88,7 +87,6 @@ impl Resolver {
                         cfunc.ret = ret;
                         self.funcs.insert(cfunc.name.clone(), cfunc);
                     } else {
-                        // TODO
                         warn!("Function resolve fails: {:?}", func);
                     }
                 }

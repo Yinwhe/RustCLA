@@ -1,20 +1,12 @@
-use std::{
-    process::Command,
-    sync::{Arc, Mutex},
-};
+use std::process::Command;
 
 use inkwell::{context::Context, module::Module, targets::TargetData, values::FunctionValue};
 use lazy_static::lazy_static;
 
-use crate::{analysis_types::*, target::host_target};
-
 use super::{ctypes::*, helper::collect_mangles};
+use crate::{analysis_types::*, target::host_target, CLANG};
 
-const COLLECT_CXX: &str = "collector/collect_cxx/collect_cxx";
-
-lazy_static! {
-    static ref CX: Arc<Mutex<Context>> = Arc::new(Mutex::new(Context::create()));
-}
+const COLLECT_CXX: &str = "$HOME/.abi_checker/collect_cxx";
 
 #[inline]
 pub fn collect_info_from_cpp_file<'cx>(
@@ -23,8 +15,8 @@ pub fn collect_info_from_cpp_file<'cx>(
     cpp_standard: Option<&str>,
     cx: &'cx Context,
 ) -> Result<Analysis, String> {
-    let res = Command::new(COLLECT_CXX)
-        .arg(file)
+    let res = Command::new("sh")
+        .args(&["-c", &format!("{} {}", COLLECT_CXX, file)])
         .output()
         .expect("failed to execute process");
 
@@ -97,15 +89,21 @@ pub fn collect_info_from_cpp_file<'cx>(
 }
 
 fn generate_bcfile(file: &str) -> Result<(), String> {
-    let res = Command::new("clang")
-        .args(&["-c", "-emit-llvm", "-o", "cpp.bc", file])
+    let res = Command::new("sh")
+        .args(&[
+            "-c",
+            &format!("{} -c -emit-llvm -o $HOME/.abi_checker/cpp.bc {}", CLANG, file),
+        ])
         .output()
         .expect("failed to execute process");
 
     if res.status.success() {
         Ok(())
     } else {
-        Err(format!("generate bc file fails, due to {:?}", res.stderr))
+        Err(format!(
+            "generate bc file fails, due to {:?}",
+            String::from_utf8_lossy(&res.stderr)
+        ))
     }
 }
 

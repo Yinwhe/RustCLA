@@ -1,6 +1,14 @@
-use collect_rust::Resolver;
+use collect_rust::parse;
+use clap::Parser;
+
+#[derive(Parser)]
+struct Args {
+    file: String,
+}
 
 fn main() {
-    let mut resolver = Resolver::new("tests/struct.rs").unwrap();
-    resolver.resolve_cbindgen_one();
+    let args = Args::parse();
+
+    let rinfo = parse(&args.file).expect("parse failed");
+    println!("{}", serde_json::to_string(&rinfo).unwrap());
 }

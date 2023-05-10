@@ -35,7 +35,6 @@ impl Resolver {
                 // print!("{:#?}", st);
                 self.structs.insert(name, st);
             } else {
-                // TODO
                 warn!("parse struct fails, struct: {:?}", item);
             }
         }
@@ -46,7 +45,6 @@ impl Resolver {
                 // print!("{:#?}", st);
                 self.structs.insert(name, st);
             } else {
-                // TODO
                 warn!("parse enum fails, enum: {:?}", item);
             }
         }
@@ -57,7 +55,6 @@ impl Resolver {
                 // print!("{:#?}", st);
                 self.structs.insert(name, st);
             } else {
-                // TODO
                 warn!("parse union fails, union: {:?}", item);
             }
         }
@@ -67,7 +64,6 @@ impl Resolver {
             if let Some(func) = self.resolve_function(func.clone()) {
                 self.funcs.insert(func.name.clone(), func);
             } else {
-                // TODO
                 warn!("parse function fails, function: {:?}", func);
             }
         }

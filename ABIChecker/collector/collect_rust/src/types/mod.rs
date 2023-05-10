@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+#[cfg(feature = "my_crate")]
 use cbindgen_rust_parser::Error as BindgenError;
 
 mod function;
@@ -8,7 +10,7 @@ pub use function::*;
 pub use structure::*;
 pub use typedef::*;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RInfo {
     pub structs: Vec<RStructType>,
     pub funcs: Vec<RFunction>,
@@ -26,24 +28,27 @@ impl RInfo {
     }
 }
 
+#[cfg(feature = "my_crate")]
 #[derive(Debug)]
 pub enum CollectError {
     BindgenError(BindgenError),
     ResolveError(ResolveError)
 }
 
+#[cfg(feature = "my_crate")]
 #[derive(Debug)]
 pub enum ResolveError {
     UnsupportedType(String),
 }
 
+#[cfg(feature = "my_crate")]
 impl From<BindgenError> for CollectError {
     fn from(err: BindgenError) -> Self {
         CollectError::BindgenError(err)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 /// llvm basic types
 pub enum RType {
     IntType,

@@ -1,8 +1,10 @@
 use std::fmt::Debug;
 
-use crate::RType;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug)]
+use super::RType;
+
+#[derive(Debug, Serialize, Deserialize)]
 pub enum RStructType {
     RStruct(RStruct),
     REnum(REnum),
@@ -19,7 +21,7 @@ impl  RStructType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RStruct {
     pub name: Option<String>,
     pub fields: Vec<RField>,
@@ -35,7 +37,7 @@ impl RStruct {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RField {
     pub name: Option<String>,
     pub ty: RType,
@@ -51,12 +53,12 @@ impl RField {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct REnum {
     pub name: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RUnion {
     pub name: Option<String>,
 }

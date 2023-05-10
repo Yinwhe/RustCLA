@@ -1,6 +1,8 @@
-use crate::RField;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug)]
+use super::RField;
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RFunction {
     pub name: String,
     pub args: Vec<RField>,

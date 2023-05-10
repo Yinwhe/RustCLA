@@ -7,4 +7,11 @@ edition = "2021"
 
 [dependencies]
 cbindgen_rust_parser = { path = "../../modified_deps/cbindgen" }
+clap = { version = "4.2.7", features = ["derive"] }
 log = "0.4.17"
+serde = { version = "1.0.160", features = ["derive"] }
+serde_json = "1.0.96"
+
+[features]
+my_crate = []
+default = ["my_crate"]

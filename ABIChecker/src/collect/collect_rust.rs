@@ -1,19 +1,26 @@
+use inkwell::{context::Context, module::Module, targets::TargetData, values::FunctionValue};
 use std::process::Command;
 
-use inkwell::{context::Context, module::Module, targets::TargetData, values::FunctionValue};
+use super::{helper::collect_mangles, rtypes::*};
+use crate::{analysis_types::*, target::host_target, RUSTC};
 
-use crate::{analysis_types::*, collect::helper::collect_mangles, target::host_target};
-
-use collect_rust::{parse, RFunction, RStructType};
+const COLLECT_RUST: &str = "$HOME/.abi_checker/collect_rust";
 
 pub fn collect_info_from_rust_file(file: &str, cx: &Context) -> Result<Analysis, String> {
-    let rinfo = if let Some(rinfo) = parse(file) {
+    let res = Command::new("sh")
+        .args(["-c", &format!("{} {}", COLLECT_RUST, file)])
+        .output()
+        .expect("failed to execute process");
+
+    let rinfo = if res.status.success() {
+        let rinfo: RInfo = serde_json::from_slice(&res.stdout).unwrap();
         rinfo
     } else {
-        return Err(format!("collect info from rust file fails"));
+        return Err(format!(
+            "collect info from rust file fails, due to {:?}",
+            String::from_utf8_lossy(&res.stderr)
+        ));
     };
-
-    print!("{:#?}", rinfo);
 
     generate_bcfile(file)?;
 
@@ -72,15 +79,24 @@ pub fn collect_info_from_rust_file(file: &str, cx: &Context) -> Result<Analysis,
 }
 
 fn generate_bcfile(file: &str) -> Result<(), String> {
-    let res = Command::new("rustc")
-        .args(&["--emit=llvm-bc", "--crate-type=rlib", "-o", "rust.bc", file])
+    let res = Command::new("sh")
+        .args(&[
+            "-c",
+            &format!(
+                "{} --emit=llvm-bc --crate-type=rlib -o $HOME/.abi_checker/rust.bc {}",
+                RUSTC, file
+            ),
+        ])
         .output()
         .expect("failed to execute process");
 
     if res.status.success() {
         Ok(())
     } else {
-        Err(format!("generate bc file fails, due to {:?}", res.stderr))
+        Err(format!(
+            "generate bc file fails, due to {:?}",
+            String::from_utf8_lossy(&res.stderr)
+        ))
     }
 }
 

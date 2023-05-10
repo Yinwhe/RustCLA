@@ -1,6 +1,8 @@
-use crate::RType;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug)]
+use super::RType;
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TypeDef {
     pub name: String,
     pub aliased: RType,
