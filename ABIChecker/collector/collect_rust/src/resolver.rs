@@ -18,7 +18,7 @@ pub struct Resolver {
 impl Resolver {
     pub fn new(file: &str) -> Result<Self, CollectError> {
         let parse = cbindgen_parse_one(file)?;
-        // println!("{:#?}", parse);
+        debug!("{:#?}", parse);
         Ok(Self {
             parse,
             structs: HashMap::new(),
@@ -95,6 +95,7 @@ impl Resolver {
                 PrimitiveType::PtrDiffT => Some(RType::PointerType),
                 PrimitiveType::SChar => Some(RType::IntType),
                 PrimitiveType::UChar => Some(RType::IntType),
+                PrimitiveType::Void => Some(RType::IntType),
                 _ => None,
             },
         }

@@ -1,4 +1,4 @@
-use std::fmt::{Debug};
+use std::fmt::Debug;
 
 use inkwell::{
     targets::TargetData,
@@ -120,8 +120,9 @@ impl AnalysisStruct {
 
     pub fn get_fields_from_range(&self, start: u32, end: u32) -> Vec<AnalysisField> {
         let mut fields = Vec::new();
+        let end = if end == 0 { u32::MAX } else { end };
         for f in &self.fields {
-            if f.range.0 <= end && f.range.1 >= start {
+            if f.range.0 >= start && f.range.0 < end {
                 fields.push(f.clone());
             }
         }
@@ -146,7 +147,13 @@ impl Debug for AnalysisField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let tys = match &self.ty {
             AnalysisFieldType::FloatType => "FloatType".to_string(),
-            AnalysisFieldType::ArrayType => "ArrayType".to_string(),
+            AnalysisFieldType::ArrayType => {
+                if self.is_padding {
+                    "Padding".to_string()
+                } else {
+                    "ArrayType".to_string()
+                }
+            }
             AnalysisFieldType::IntType => "IntType".to_string(),
             AnalysisFieldType::PointerType => "PointerType".to_string(),
             AnalysisFieldType::VectorType => "VectorType".to_string(),
@@ -241,7 +248,6 @@ pub enum AnalysisParametersType {
     /// A contiguous homogeneous "SIMD" container type.
     VectorType,
 }
-
 
 impl From<BasicTypeEnum<'_>> for AnalysisParametersType {
     fn from(value: BasicTypeEnum) -> Self {

@@ -2,9 +2,13 @@ use std::collections::{HashMap, HashSet};
 
 use analysis_types::{Analysis, AnalysisFunction, AnalysisStruct};
 use ansi_term::Color;
+use clap::Parser;
 use inkwell::context::Context;
 
-use crate::analysis::{function_analysis, info_struct_analysis};
+use crate::{
+    analysis::{function_analysis, info_struct_analysis},
+    analysis_types::AnalysisResultType,
+};
 
 mod analysis;
 mod analysis_types;
@@ -18,21 +22,32 @@ pub const HOME: &str = env!("HOME");
 pub const CLANG: &str = "clang";
 pub const RUSTC: &str = "rustc";
 
+#[derive(Parser)]
+struct Args {
+    #[clap(short, long)]
+    rustfile: String,
+    #[clap(short, long)]
+    cppfile: String,
+}
+
 fn main() {
     pretty_env_logger::init();
+
+    let args = Args::parse();
 
     let c_cx = Context::create();
     let r_cx = Context::create();
 
+    let rinfo = collect::collect_info_from_rust_file(
+        &args.rustfile,
+        &r_cx,
+    );
+
     let cinfo = collect::collect_info_from_cpp_file(
-        "/home/ubuntu/Desktop/RustCLA/ABIChecker/tests/test1/cpp.cc",
+        &args.cppfile,
         None,
         None,
         &c_cx,
-    );
-    let rinfo = collect::collect_info_from_rust_file(
-        "/home/ubuntu/Desktop/RustCLA/ABIChecker/tests/test1/rust.rs",
-        &r_cx,
     );
 
     debug!("cinfo {:#?}", cinfo);
@@ -104,38 +119,44 @@ fn analysis_struct(rsts: Vec<AnalysisStruct>, csts: Vec<AnalysisStruct>) {
             );
         } else {
             for info in res.get_info() {
-                if info.is_error() {
-                    print!(
-                        "{} {:?}\n",
-                        Color::Red.paint(format!("[Analysis Struct {} Error]", todo)),
-                        info.ty
-                    );
-                    print!(
-                        "{} : {:?}\n",
-                        Color::Red.paint("Struct in rust sides"),
-                        rst.get_fields_from_range(info.rloc.0, info.rloc.1)
-                    );
-                    print!(
-                        "{} : {:?}\n",
-                        Color::Red.paint("Struct in cpp sides"),
-                        cst.get_fields_from_range(info.rloc.0, info.rloc.1)
-                    );
+                let (paint, level) = if info.is_error() {
+                    (Color::Red, "Error")
                 } else {
-                    print!(
-                        "{} {:?}\n",
-                        Color::Yellow.paint(format!("[Analysis Struct {} Warn]", todo)),
-                        info.ty
-                    );
-                    print!(
-                        "{} : {:?}\n",
-                        Color::Yellow.paint("Struct in rust sides"),
-                        rst.get_fields_from_range(info.rloc.0, info.rloc.1)
-                    );
-                    print!(
-                        "{} : {:?}\n",
-                        Color::Yellow.paint("Struct in cpp sides"),
-                        cst.get_fields_from_range(info.rloc.0, info.rloc.1)
-                    );
+                    (Color::Yellow, "Warn")
+                };
+
+                // title
+                print!(
+                    "{} {:?} : {}\n",
+                    paint.paint(format!("[Analysis Struct {} {}]", todo, level)),
+                    info.ty,
+                    info.cont
+                );
+                match info.ty {
+                    AnalysisResultType::AlignmentMismatch => {
+                        print!(
+                            "{} : {:?}\n",
+                            paint.paint("Struct Alignment in rust side"),
+                            rst.get_alignment()
+                        );
+                        print!(
+                            "{} : {:?}\n",
+                            paint.paint("Struct Alignment in cpp side"),
+                            cst.get_alignment()
+                        );
+                    }
+                    _ => {
+                        print!(
+                            "{} : {:?}\n",
+                            paint.paint("Struct fields in rust side"),
+                            rst.get_fields_from_range(info.rloc.0, info.rloc.1)
+                        );
+                        print!(
+                            "{} : {:?}\n",
+                            paint.paint("Struct fields in cpp side"),
+                            cst.get_fields_from_range(info.rloc.0, info.rloc.1)
+                        );
+                    }
                 }
             }
         }
@@ -192,8 +213,8 @@ fn analysis_funcs(rfuncs: Vec<AnalysisFunction>, cfuncs: Vec<AnalysisFunction>) 
                     info.ty
                 );
 
-                print!("{} {:?}\n", Color::Red.paint("Function sig in rust"), rfunc);
-                print!("{} {:?}\n", Color::Red.paint("Function sig in cpp"), cfunc)
+                print!("{} {:?}\n", Color::Red.paint("Function sig in rust side"), rfunc);
+                print!("{} {:?}\n", Color::Red.paint("Function sig in cpp side"), cfunc)
             }
         }
     }

@@ -130,6 +130,7 @@ impl Resolver {
             TypeKind::Reference(_) => Some(CType::PointerType),
             TypeKind::Vector(_, _) => Some(CType::VecTorType),
             TypeKind::Alias(alias) => self.resolve_alias(alias),
+            TypeKind::Void => Some(CType::IntType),
             // Currently we assume c enum as integer
             TypeKind::Enum(_) => Some(CType::IntType),
             TypeKind::ResolvedTypeRef(ty) => {

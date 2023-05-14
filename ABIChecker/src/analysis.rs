@@ -178,7 +178,7 @@ pub fn info_struct_analysis(
         processed_total_size, matches
     );
 
-    debug!("r_remain: {:?}\nc_remain: {:#?}", r_remain, c_remain);
+    debug!("r_remain: {:#?}\nc_remain: {:#?}", r_remain, c_remain);
 
     // unmatched fields, should be errors
     if !r_remain.is_empty() || !c_remain.is_empty() {

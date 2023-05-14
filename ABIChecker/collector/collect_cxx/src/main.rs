@@ -7,6 +7,7 @@ struct Args {
 }
 
 fn main() {
+    pretty_env_logger::init();
     let args = Args::parse();
 
     let cinfo = parse(&args.file, None, None).expect("parse failed");

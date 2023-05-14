@@ -10,8 +10,8 @@ const COLLECT_CXX: &str = "$HOME/.abi_checker/collect_cxx";
 #[inline]
 pub fn collect_info_from_cpp_file<'cx>(
     file: &str,
-    clang_target: Option<&str>,
-    cpp_standard: Option<&str>,
+    _clang_target: Option<&str>,
+    _cpp_standard: Option<&str>,
     cx: &'cx Context,
 ) -> Result<Analysis, String> {
     let res = Command::new("sh")
@@ -166,7 +166,7 @@ fn resolve_one_struct(
 }
 
 fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), String> {
-    let name = cst.name.clone().expect("Fatal error, should not happen");
+    let name = cst.name.clone();
 
     let mut index = 0;
     let len = cst.fields.len();
@@ -201,14 +201,14 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), S
 
     if index != len {
         return Err(format!(
-            "resolve AnalysisStruct fail, {} info not match",
+            "resolve AnalysisStruct fail, {:?} info not match",
             name
         ));
     }
 
     ast.is_enum = false;
     ast.is_union = false;
-    ast.name = Some(name);
+    ast.name = name;
 
     return Ok(());
 }

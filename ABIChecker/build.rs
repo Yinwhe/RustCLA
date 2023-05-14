@@ -2,6 +2,7 @@ use std::fs::create_dir;
 use std::process::Command;
 
 fn main() {
+    print!("cargo:rerun-if-changed=collector");
     let home = std::env::var("HOME").expect("Fail to get $HOME");
     create_dir(format!("{}/.abi_checker", home)).unwrap_or_default();
 
