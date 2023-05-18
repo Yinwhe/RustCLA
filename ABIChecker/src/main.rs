@@ -32,12 +32,11 @@ struct Args {
 
 fn main() {
     pretty_env_logger::init();
-
     let args = Args::parse();
 
     let c_cx = Context::create();
     let r_cx = Context::create();
-
+    
     let rinfo = collect::collect_info_from_rust_file(
         &args.rustfile,
         &r_cx,
@@ -110,7 +109,9 @@ fn analysis_struct(rsts: Vec<AnalysisStruct>, csts: Vec<AnalysisStruct>) {
         let rst = rst_map.get(todo).expect("Should not happen");
         let cst = cst_map.get(todo).expect("Should not happen");
 
-        let res = info_struct_analysis(rst.clone(), cst.clone());
+        let res = info_struct_analysis(rst.clone(), cst.clone(), false);
+
+        debug!("res: {:#?}", res);
 
         if res.is_empty() {
             print!(
@@ -159,6 +160,17 @@ fn analysis_struct(rsts: Vec<AnalysisStruct>, csts: Vec<AnalysisStruct>) {
                     }
                 }
             }
+            // all infos
+            print!(
+                "{} : {:?}\n",
+                Color::Blue.paint("All struct fields from rust side"),
+                rst.fields
+            );
+            print!(
+                "{} : {:?}\n",
+                Color::Blue.paint("All struct fields from cpp side"),
+                cst.fields
+            );
         }
     }
 }
@@ -212,10 +224,9 @@ fn analysis_funcs(rfuncs: Vec<AnalysisFunction>, cfuncs: Vec<AnalysisFunction>) 
                     Color::Red.paint(format!("[Analysis Function {} Error]", todo)),
                     info.ty
                 );
-
-                print!("{} {:?}\n", Color::Red.paint("Function sig in rust side"), rfunc);
-                print!("{} {:?}\n", Color::Red.paint("Function sig in cpp side"), cfunc)
             }
+            print!("{} {:?}\n", Color::Blue.paint("Function sig in rust side"), rfunc);
+            print!("{} {:?}\n", Color::Blue.paint("Function sig in cpp side"), cfunc)
         }
     }
 }

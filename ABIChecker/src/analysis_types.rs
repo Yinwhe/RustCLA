@@ -5,6 +5,8 @@ use inkwell::{
     types::{BasicTypeEnum, StructType},
 };
 
+use crate::collect::{RIntType, CIntType};
+
 #[derive(Debug)]
 pub struct Analysis {
     pub structs: Vec<AnalysisStruct>,
@@ -19,6 +21,8 @@ pub struct AnalysisStruct {
 
     pub fields: Vec<AnalysisField>,
     pub alignment: u32,
+
+    pub temp: bool,
 }
 
 #[derive(Clone)]
@@ -38,7 +42,7 @@ pub enum AnalysisFieldType {
     /// A floating point type.
     FloatType,
     /// An integer type.
-    IntType,
+    IntType(AIntType),
     /// A pointer type.
     PointerType,
     /// A contiguous heterogeneous container type.
@@ -47,23 +51,98 @@ pub enum AnalysisFieldType {
     VectorType,
 }
 
+#[allow(unused)]
+#[derive(Debug, Clone)]
+pub enum AIntType {
+    SignedInt,
+    UnsignedInt,
+    SignedChar,
+    UnsignedChar,
+    Bool,
+    Void,
+    CEnum,
+}
+
+impl From<&RIntType> for AIntType {
+    fn from(value: &RIntType) -> Self {
+        match value {
+            RIntType::Bool => Self::Bool,
+            RIntType::SignedInt => Self::SignedInt,
+            RIntType::UnsignedInt => Self::UnsignedInt,
+            RIntType::SignedChar => Self::SignedChar,
+            RIntType::UnsignedChar => Self::UnsignedChar,
+            RIntType::RVoid => Self::Void,
+        }
+    }
+}
+
+impl From<&CIntType> for AIntType {
+    fn from(value: &CIntType) -> Self {
+        match value {
+            CIntType::Bool => Self::Bool,
+            CIntType::SignedInt => Self::SignedInt,
+            CIntType::UnsignedInt => Self::UnsignedInt,
+            CIntType::SignedChar => Self::SignedChar,
+            CIntType::UnsignedChar => Self::UnsignedChar,
+            CIntType::CEnum => Self::CEnum,
+            CIntType::CVoid => Self::Void,
+        }
+    }
+}
+
+impl AIntType {
+    pub fn get_type_id(&self) -> u32 {
+        match self {
+            Self::SignedInt => 0,
+            Self::UnsignedInt => 1,
+            Self::SignedChar => 2,
+            Self::UnsignedChar => 3,
+            Self::Bool => 4,
+            Self::Void => 5,
+            Self::CEnum => 6,
+        }
+    }
+}
+
 impl AnalysisFieldType {
     pub fn get_type_id(&self) -> u32 {
         match self {
             AnalysisFieldType::ArrayType => 0,
             AnalysisFieldType::FloatType => 1,
-            AnalysisFieldType::IntType => 2,
+            AnalysisFieldType::IntType(_) => 2,
             AnalysisFieldType::PointerType => 3,
             AnalysisFieldType::StructType(_) => 4,
             AnalysisFieldType::VectorType => 5,
         }
     }
+
+    pub fn type_match(a: &AnalysisFieldType, b: &AnalysisFieldType) -> bool {
+        if a.get_type_id() != b.get_type_id() {
+            false
+        } else {
+            match a {
+                Self::IntType(_) => a.get_int_type_id() == b.get_int_type_id(),
+                _ => true,
+            }
+        }
+    }
+
+    pub fn get_int_type_id(&self) -> u32 {
+        if let Self::IntType(ik) = self {
+            ik.get_type_id()
+        } else {
+            panic!("Ccannot get int type id from non-int types")
+        }
+    }
 }
 
 impl AnalysisStruct {
-    pub fn from_ctx_raw(st: StructType, target_data: &TargetData) -> Self {
+    pub fn from_ctx_raw(st: StructType, cur_off: u32, target_data: &TargetData) -> Self {
         let mut fields = Vec::new();
         let alignment = target_data.get_abi_alignment(&st);
+        let st_size = target_data.get_store_size(&st) as u32;
+
+        let mut last_end = 0;
 
         for (index, ty) in st.get_field_types().into_iter().enumerate() {
             let start = target_data
@@ -71,16 +150,33 @@ impl AnalysisStruct {
                 .expect("Fatal Error, get element offset failed") as u32;
             let end = start + target_data.get_store_size(&ty) as u32;
 
-            let fty = Self::get_type(ty.clone(), target_data);
+            let fty = Self::get_type(ty.clone(), last_end + cur_off, target_data);
+
+            // add alignment padding
+            if start != last_end {
+                assert!(start > last_end);
+                fields.push(AnalysisField::padding(last_end + cur_off, start + cur_off));
+            }
+
+            last_end = end;
 
             fields.push(AnalysisField {
                 name: None,
                 is_padding: false,
 
                 ty: fty,
-                range: (start, end),
+                range: (start + cur_off, end + cur_off),
                 temp: false, // _inner: ty,
             });
+        }
+
+        // add alignment padding
+        if last_end != st_size {
+            assert!(st_size > last_end);
+            fields.push(AnalysisField::padding(
+                last_end + cur_off,
+                st_size + cur_off,
+            ));
         }
 
         Self {
@@ -90,6 +186,8 @@ impl AnalysisStruct {
 
             fields,
             alignment,
+
+            temp: false,
         }
     }
 
@@ -115,6 +213,8 @@ impl AnalysisStruct {
             is_enum: false,
             fields: fields,
             alignment: 0,
+
+            temp: true,
         }
     }
 
@@ -122,21 +222,37 @@ impl AnalysisStruct {
         let mut fields = Vec::new();
         let end = if end == 0 { u32::MAX } else { end };
         for f in &self.fields {
-            if f.range.0 >= start && f.range.0 < end {
+            if let Some(st) = f.get_struct() {
+                fields.extend(st.get_fields_from_range(start, end));
+            } else if f.range.0 >= start && f.range.0 < end {
                 fields.push(f.clone());
             }
         }
         fields
     }
 
-    fn get_type(ty: BasicTypeEnum, target_data: &TargetData) -> AnalysisFieldType {
+    // /// Get the type of the struct.
+    // /// 0: struct
+    // /// 1: enum(rust)
+    // /// 2: union
+    // pub fn get_struct_type(&self) -> u32 {
+    //     if self.is_enum {
+    //         1
+    //     } else if self.is_union {
+    //         2
+    //     } else {
+    //         0
+    //     }
+    // }
+
+    fn get_type(ty: BasicTypeEnum, cur_off: u32, target_data: &TargetData) -> AnalysisFieldType {
         match ty {
             BasicTypeEnum::ArrayType(_) => AnalysisFieldType::ArrayType,
             BasicTypeEnum::FloatType(_) => AnalysisFieldType::FloatType,
-            BasicTypeEnum::IntType(_) => AnalysisFieldType::IntType,
+            BasicTypeEnum::IntType(_) => AnalysisFieldType::IntType(AIntType::Void),
             BasicTypeEnum::PointerType(_) => AnalysisFieldType::PointerType,
             BasicTypeEnum::StructType(st) => {
-                AnalysisFieldType::StructType(Self::from_ctx_raw(st, target_data))
+                AnalysisFieldType::StructType(Self::from_ctx_raw(st, cur_off, target_data))
             }
             BasicTypeEnum::VectorType(_) => AnalysisFieldType::VectorType,
         }
@@ -154,7 +270,7 @@ impl Debug for AnalysisField {
                     "ArrayType".to_string()
                 }
             }
-            AnalysisFieldType::IntType => "IntType".to_string(),
+            AnalysisFieldType::IntType(ik) => format!("{:?}", ik),
             AnalysisFieldType::PointerType => "PointerType".to_string(),
             AnalysisFieldType::VectorType => "VectorType".to_string(),
             AnalysisFieldType::StructType(st) => format!("StructType {:?}", st.fields),
@@ -171,6 +287,16 @@ impl Debug for AnalysisField {
 }
 
 impl AnalysisField {
+    pub fn padding(start: u32, end: u32) -> Self {
+        Self {
+            name: None,
+            is_padding: true,
+            ty: AnalysisFieldType::ArrayType,
+            range: (start, end),
+            temp: false,
+        }
+    }
+
     pub fn get_size(&self) -> u32 {
         self.range.1 - self.range.0
     }
@@ -179,9 +305,6 @@ impl AnalysisField {
         self.ty.get_type_id()
     }
 
-    pub fn can_be_anytype(&self) -> bool {
-        self.is_padding
-    }
 
     pub fn get_struct_mut(&mut self) -> Option<&mut AnalysisStruct> {
         match &mut self.ty {
@@ -192,6 +315,13 @@ impl AnalysisField {
 
     pub fn get_struct(&self) -> Option<&AnalysisStruct> {
         match &self.ty {
+            AnalysisFieldType::StructType(st) => Some(st),
+            _ => None,
+        }
+    }
+
+    pub fn get_into_struct(self) -> Option<AnalysisStruct> {
+        match self.ty {
             AnalysisFieldType::StructType(st) => Some(st),
             _ => None,
         }
@@ -326,6 +456,12 @@ impl AnalysisStructResult {
     }
 
     pub fn merge(&mut self, res: &AnalysisStructResult) {
+        // let iter = res.get_info().into_iter().map(|mut res| {
+        //     let mut s = "substruct: ".to_string();
+        //     s.push_str(&res.cont);
+        //     res.cont = s;
+        //     res
+        // });
         self.infos.extend(res.get_info())
     }
 

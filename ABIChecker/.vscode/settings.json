@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.c": "c",
-        "random": "cpp"
+        "random": "cpp",
+        "cstdint": "cpp"
     }
 }

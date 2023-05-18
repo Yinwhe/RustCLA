@@ -4,8 +4,9 @@ use crate::analysis_types::*;
 pub fn info_struct_analysis(
     rstruct: AnalysisStruct,
     cstruct: AnalysisStruct,
+    is_sub: bool,
 ) -> AnalysisStructResult {
-    debug!("rstruct: {:?}\ncstruct: {:?}\n", rstruct, cstruct);
+    debug!("\nrstruct: {:#?}\ncstruct: {:#?}\n", rstruct, cstruct);
     enum AnalysisStatus {
         Match,
         RustRemain,
@@ -15,8 +16,8 @@ pub fn info_struct_analysis(
     let mut status = AnalysisStatus::Match;
     let mut result = AnalysisStructResult::new(rstruct.clone(), cstruct.clone());
 
-    // Check struct align first
-    if rstruct.get_alignment() != cstruct.get_alignment() {
+    // Check struct align first, but won't check substrusts
+    if !is_sub && rstruct.get_alignment() != cstruct.get_alignment() {
         result.add_info(AnalysisResultContent::warn(
             (0, 0),
             (0, 0),
@@ -36,9 +37,27 @@ pub fn info_struct_analysis(
     let mut processed_total_size = 0;
     let mut accumulate = 0;
 
+    // for unions, only check whole sizes
+    if rstruct.is_union && cstruct.is_union {
+        let rrange = rstruct.get_range();
+        let crange = cstruct.get_range();
+        if rrange != crange {
+            // mismatch occurs
+            result.add_info(AnalysisResultContent::error(
+                rrange,
+                crange,
+                AnalysisResultType::SizeMismatch,
+                format!("Union type size not match"),
+            ));
+        }
+
+        return result;
+    }
+
     // Check size
     while let (Some(rf), Some(cf)) = (rstruct.get_field(r_index), cstruct.get_field(c_index)) {
         let (rf_size, cf_size) = (rf.get_size(), cf.get_size());
+        debug!("check size: {:?}, {:?}", rf, cf);
 
         match status {
             AnalysisStatus::Match => {
@@ -74,6 +93,7 @@ pub fn info_struct_analysis(
                 if rf_size == cf_size + accumulate {
                     // matches
                     processed_total_size += rf_size;
+                    c_match.push(cf);
 
                     // store matches
                     let temp_st = AnalysisStruct::temp(c_match);
@@ -104,10 +124,10 @@ pub fn info_struct_analysis(
                 } else {
                     // mismatch occurs
                     result.add_info(AnalysisResultContent::error(
-                        (processed_total_size, rf.range.1),
-                        (processed_total_size, cf.range.1),
+                        rf.range,
+                        cf.range,
                         AnalysisResultType::SizeMismatch,
-                        format!("Mismatch occurs"),
+                        format!("Size mismatch, rust field end in the mid of c++ field"),
                     ));
                     return result;
                 }
@@ -116,6 +136,7 @@ pub fn info_struct_analysis(
                 if rf_size + accumulate == cf_size {
                     // matches
                     processed_total_size += cf_size;
+                    r_match.push(rf);
 
                     // store matches
                     let temp_st = AnalysisStruct::temp(r_match);
@@ -128,7 +149,7 @@ pub fn info_struct_analysis(
                         temp: true,
                     };
 
-                    matches.push((rf, temp_f));
+                    matches.push((cf, temp_f));
 
                     // renew
                     r_match = Vec::new();
@@ -146,10 +167,10 @@ pub fn info_struct_analysis(
                 } else {
                     // mismatch occurs
                     result.add_info(AnalysisResultContent::error(
-                        (processed_total_size, rf.range.1),
-                        (processed_total_size, cf.range.1),
+                        rf.range,
+                        cf.range,
                         AnalysisResultType::SizeMismatch,
-                        format!("Mismatch occurs"),
+                        format!("Size mismatch, c++ field end in the mid of rust field"),
                     ));
                     return result;
                 }
@@ -186,50 +207,44 @@ pub fn info_struct_analysis(
             (processed_total_size, 0),
             (processed_total_size, 0),
             AnalysisResultType::SizeMismatch,
-            format!("Unmatched fields found"),
+            format!("Unmatched fields found, can be errors"),
         ));
-        return result;
+        // but no return
     }
 
     // Now we can do type checks
     while let Some((rf, cf)) = matches.pop() {
+        let rrange = rf.range;
+        let crange = cf.range;
+
         if rf.is_normal() {
             if cf.is_normal() {
                 // normal to normal
-                if rf.get_type_id() == cf.get_type_id() {
+                if AnalysisFieldType::type_match(&rf.ty, &cf.ty) {
+                    // if rf.get_type_id() == cf.get_type_id() {
                     // ok match
                     continue;
                 } else {
                     result.add_info(AnalysisResultContent::error(
-                        rf.range,
-                        cf.range,
+                        rrange,
+                        crange,
                         AnalysisResultType::TypeMismatch,
-                        format!("Normal type mismatch"),
+                        format!("Normal & Normal type mismatch"),
                     ));
                     return result;
                 }
             } else if cf.is_struct() {
                 // normal to struct
-                let st = cf.get_struct().expect("Should not happen");
-                if st.fields.len() != 1 {
-                    result.add_info(AnalysisResultContent::error(
-                        rf.range,
-                        cf.range,
-                        AnalysisResultType::TypeMismatch,
-                        format!("Normal & Struct type mismatch"),
-                    ));
+                let cst = cf.get_into_struct().expect("Should not happen");
+                let temp_rst = AnalysisStruct::temp(vec![rf]);
+                let sub_res = info_struct_analysis(temp_rst, cst, true);
+
+                result.merge(&sub_res);
+
+                if sub_res.is_error() {
                     return result;
                 }
 
-                if st.fields.first().expect("Should not happen").get_type_id() != rf.get_type_id() {
-                    result.add_info(AnalysisResultContent::error(
-                        rf.range,
-                        cf.range,
-                        AnalysisResultType::TypeMismatch,
-                        format!("Normal & Struct type mismatch"),
-                    ));
-                    return result;
-                }
                 // or ok
                 continue;
             } else {
@@ -237,8 +252,8 @@ pub fn info_struct_analysis(
                 if cf.is_padding {
                     // error
                     result.add_info(AnalysisResultContent::error(
-                        rf.range,
-                        cf.range,
+                        rrange,
+                        crange,
                         AnalysisResultType::TypeMismatch,
                         format!("Normal & Array type mismatch"),
                     ));
@@ -246,8 +261,8 @@ pub fn info_struct_analysis(
                 } else {
                     // warn, is opaque ?
                     result.add_info(AnalysisResultContent::warn(
-                        rf.range,
-                        cf.range,
+                        rrange,
+                        crange,
                         AnalysisResultType::TypeMismatch,
                         format!("Normal & Array type mismatch, is itended opaque"),
                     ));
@@ -256,34 +271,24 @@ pub fn info_struct_analysis(
         } else if rf.is_struct() {
             if cf.is_normal() {
                 // struct to normal
-                let st = rf.get_struct().expect("Should not happen");
-                if st.fields.len() != 1 {
-                    result.add_info(AnalysisResultContent::error(
-                        rf.range,
-                        cf.range,
-                        AnalysisResultType::TypeMismatch,
-                        format!("Struct & Normal type mismatch"),
-                    ));
+                let rst = rf.get_into_struct().expect("Should not happen");
+                let temp_cst = AnalysisStruct::temp(vec![cf]);
+                let sub_res = info_struct_analysis(rst, temp_cst, true);
+
+                result.merge(&sub_res);
+
+                if sub_res.is_error() {
                     return result;
                 }
 
-                if st.fields.first().expect("Should not happen").get_type_id() != cf.get_type_id() {
-                    result.add_info(AnalysisResultContent::error(
-                        rf.range,
-                        cf.range,
-                        AnalysisResultType::TypeMismatch,
-                        format!("Struct & Normal type mismatch"),
-                    ));
-                    return result;
-                }
                 // or ok
                 continue;
             } else if cf.is_struct() {
                 // struct to struct
-                let rst = rf.get_struct().expect("Should not happen").clone();
-                let cst = cf.get_struct().expect("Should not happen").clone();
+                let rst = rf.get_into_struct().expect("Should not happen");
+                let cst = cf.get_into_struct().expect("Should not happen");
 
-                let sub_res = info_struct_analysis(rst, cst);
+                let sub_res = info_struct_analysis(rst, cst, true);
                 result.merge(&sub_res);
 
                 if sub_res.is_error() {
@@ -294,17 +299,27 @@ pub fn info_struct_analysis(
                 if cf.is_padding {
                     // error
                     result.add_info(AnalysisResultContent::error(
-                        rf.range,
-                        cf.range,
+                        rrange,
+                        crange,
                         AnalysisResultType::TypeMismatch,
                         format!("Struct & Array type mismatch"),
                     ));
                     return result;
                 } else {
+                    // we first take arrays as normal type
+                    let rst = rf.get_into_struct().expect("Should not happen");
+                    let temp_cst = AnalysisStruct::temp(vec![cf]);
+                    let sub_res = info_struct_analysis(rst, temp_cst, true);
+
+                    if sub_res.is_empty() {
+                        // no errors, ok
+                        continue;
+                    }
+
                     // warn, is opaque ?
                     result.add_info(AnalysisResultContent::warn(
-                        rf.range,
-                        cf.range,
+                        rrange,
+                        crange,
                         AnalysisResultType::TypeMismatch,
                         format!("Struct & Array type mismatch, is itended opaque"),
                     ));
@@ -343,10 +358,20 @@ pub fn info_struct_analysis(
                     ));
                     return result;
                 } else {
+                    // we first take arrays as normal type
+                    let cst = cf.get_into_struct().expect("Should not happen");
+                    let temp_rst = AnalysisStruct::temp(vec![rf]);
+                    let sub_res = info_struct_analysis(temp_rst, cst, true);
+
+                    if sub_res.is_empty() {
+                        // no errors, ok
+                        continue;
+                    }
+
                     // warn, is opaque ?
                     result.add_info(AnalysisResultContent::warn(
-                        rf.range,
-                        cf.range,
+                        rrange,
+                        crange,
                         AnalysisResultType::TypeMismatch,
                         format!("Array & Struct type mismatch, is itended opaque"),
                     ));
@@ -358,15 +383,15 @@ pub fn info_struct_analysis(
                     continue;
                 }
 
-                if !rf.is_padding && cf.is_padding {
+                if !rf.is_padding && !cf.is_padding {
                     // ok
                     continue;
                 }
 
                 // or, warn
                 result.add_info(AnalysisResultContent::warn(
-                    rf.range,
-                    cf.range,
+                    rrange,
+                    crange,
                     AnalysisResultType::TypeMismatch,
                     format!("Array & Array type mismatch, is itended opaque"),
                 ));

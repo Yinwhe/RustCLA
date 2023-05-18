@@ -11,4 +11,10 @@ struct bar {
   enum foo member;
 };
 
+struct T {
+  int a;
+  int* c;
+  unsigned int d;
+};
+
 void root(foo f, bar b){}

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use bindgen_cxx_parser::{
     comp::{CompInfo, FieldMethods},
     context::{BindgenContext, TypeId},
+    int::IntKind,
     item_kind::ItemKind,
     ty::{Type, TypeKind},
     BindgenError,
@@ -11,7 +12,7 @@ use log::{debug, warn};
 
 use crate::{
     types::{CInfo, CollectError},
-    CField, CFunction, CStruct, CType,
+    CField, CFunction, CIntType, CStruct, CType,
 };
 
 pub struct Resolver {
@@ -124,15 +125,60 @@ impl Resolver {
                 .map(|inner| CType::StructType(inner)),
             TypeKind::Complex(_) => Some(CType::FloatType),
             TypeKind::Float(_) => Some(CType::FloatType),
-            TypeKind::Int(_) => Some(CType::IntType),
+            TypeKind::Int(ik) => {
+                let ik = match ik {
+                    IntKind::Bool => CIntType::Bool,
+
+                    IntKind::SChar => CIntType::SignedChar,
+                    IntKind::WChar => CIntType::SignedChar,
+                    IntKind::UChar => CIntType::UnsignedChar,
+                    IntKind::Char { is_signed } => {
+                        if *is_signed {
+                            CIntType::SignedChar
+                        } else {
+                            CIntType::UnsignedChar
+                        }
+                    }
+
+                    IntKind::Short => CIntType::SignedInt,
+                    IntKind::I8 => CIntType::SignedInt,
+                    IntKind::I16 => CIntType::SignedInt,
+                    IntKind::I32 => CIntType::SignedInt,
+                    IntKind::I64 => CIntType::SignedInt,
+                    IntKind::I128 => CIntType::SignedInt,
+                    IntKind::Int => CIntType::SignedInt,
+                    IntKind::Long => CIntType::SignedInt,
+                    IntKind::LongLong => CIntType::SignedInt,
+
+                    IntKind::UShort => CIntType::UnsignedInt,
+                    IntKind::U8 => CIntType::UnsignedInt,
+                    IntKind::U16 => CIntType::UnsignedInt,
+                    IntKind::U32 => CIntType::UnsignedInt,
+                    IntKind::U64 => CIntType::UnsignedInt,
+                    IntKind::U128 => CIntType::UnsignedInt,
+                    IntKind::UInt => CIntType::UnsignedInt,
+                    IntKind::ULong => CIntType::UnsignedInt,
+                    IntKind::ULongLong => CIntType::UnsignedInt,
+                    
+                    IntKind::Custom {  is_signed, .. } => {
+                        if *is_signed {
+                            CIntType::SignedInt
+                        } else {
+                            CIntType::UnsignedInt
+                        }
+                    }
+                };
+
+                Some(CType::IntType(ik))
+            }
             TypeKind::NullPtr => Some(CType::PointerType),
             TypeKind::Pointer(_) => Some(CType::PointerType),
             TypeKind::Reference(_) => Some(CType::PointerType),
             TypeKind::Vector(_, _) => Some(CType::VecTorType),
             TypeKind::Alias(alias) => self.resolve_alias(alias),
-            TypeKind::Void => Some(CType::IntType),
+            TypeKind::Void => Some(CType::IntType(CIntType::CVoid)),
             // Currently we assume c enum as integer
-            TypeKind::Enum(_) => Some(CType::IntType),
+            TypeKind::Enum(_) => Some(CType::IntType(CIntType::CEnum)),
             TypeKind::ResolvedTypeRef(ty) => {
                 let ty = self.ctx.resolve_type(ty.clone());
                 self.resolve_btype_to_ctype(ty)

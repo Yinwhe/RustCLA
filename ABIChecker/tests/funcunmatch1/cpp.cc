@@ -10,9 +10,9 @@ struct Bar {
     ~Bar() { data = 4; }
 };
 
-Foo MakeFoo() { return Foo(); }
+extern "C" Foo MakeFoo() { return Foo(); }
 
-Bar MakeBar() { return Bar(); }
+extern "C" Bar MakeBar() { return Bar(); }
 
 void root() {
     Foo f;

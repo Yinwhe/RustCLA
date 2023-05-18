@@ -6,7 +6,7 @@ use cbindgen_rust_parser::{
 };
 use log::{debug, warn};
 
-use crate::{CollectError, REnum, RField, RFunction, RInfo, RStruct, RStructType, RType};
+use crate::{CollectError, REnum, RField, RFunction, RInfo, RStruct, RStructType, RType, RIntType, RUnion};
 
 pub struct Resolver {
     parse: Parse,
@@ -86,16 +86,22 @@ impl Resolver {
             Type::FuncPtr { .. } => Some(RType::PointerType),
             Type::Path(path) => self.resolve_path(path.path()),
             Type::Primitive(prim) => match prim {
-                PrimitiveType::Bool => Some(RType::IntType),
-                PrimitiveType::Char => Some(RType::IntType),
-                PrimitiveType::Char32 => Some(RType::IntType),
+                PrimitiveType::Bool => Some(RType::IntType(RIntType::Bool)),
+                PrimitiveType::Char => Some(RType::IntType(RIntType::SignedChar)),
+                PrimitiveType::Char32 => Some(RType::IntType(RIntType::SignedChar)),
                 PrimitiveType::Double => Some(RType::FloatType),
                 PrimitiveType::Float => Some(RType::FloatType),
-                PrimitiveType::Integer { .. } => Some(RType::IntType),
+                PrimitiveType::Integer { signed, .. } => {
+                    if signed {
+                        Some(RType::IntType(RIntType::SignedInt))
+                    } else {
+                        Some(RType::IntType(RIntType::UnsignedInt))
+                    }
+                },
                 PrimitiveType::PtrDiffT => Some(RType::PointerType),
-                PrimitiveType::SChar => Some(RType::IntType),
-                PrimitiveType::UChar => Some(RType::IntType),
-                PrimitiveType::Void => Some(RType::IntType),
+                PrimitiveType::SChar => Some(RType::IntType(RIntType::SignedChar)),
+                PrimitiveType::UChar => Some(RType::IntType(RIntType::UnsignedChar)),
+                PrimitiveType::Void => Some(RType::IntType(RIntType::RVoid)),
                 _ => None,
             },
         }
@@ -144,7 +150,7 @@ impl Resolver {
             }
             ItemContainer::Union(un) => {
                 let name = un.name().to_owned();
-                Some(RStructType::REnum(REnum { name: Some(name) }))
+                Some(RStructType::RUnion(RUnion { name: Some(name) }))
             }
             _ => None,
         }

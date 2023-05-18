@@ -8,7 +8,7 @@ public:
     
 private:
     void *ptr;
-    int _m_buf;
+    unsigned int _m_buf;
 };
 
 class B : A

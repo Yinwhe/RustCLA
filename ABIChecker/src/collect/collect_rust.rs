@@ -126,7 +126,7 @@ fn resolve_one_struct(
         ));
     };
 
-    let mut ast = AnalysisStruct::from_ctx_raw(struct_type, &target_data);
+    let mut ast = AnalysisStruct::from_ctx_raw(struct_type, 0, &target_data);
 
     if let Err(e) = __resolve_one_struct(&mut ast, &rst) {
         return Err(e);
@@ -163,6 +163,17 @@ fn resolve_one_func(rfunc: RFunction, funcv: &FunctionValue) -> Result<AnalysisF
     Ok(AnalysisFunction { name, params, ret })
 }
 
+fn fix_detail_types(raw_field: &mut AnalysisField, info_field: &RField) {
+    assert!(raw_field.get_type_id() == info_field.ty.get_type_id());
+    match (&mut raw_field.ty, &info_field.ty) {
+        (AnalysisFieldType::IntType(_), RType::IntType(rik)) => {
+            let nty = AIntType::from(rik);
+            raw_field.ty = AnalysisFieldType::IntType(nty)
+        }
+        _ => trace!("Unimplement Yet")
+    }
+}
+
 fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(), String> {
     let name = ast.name.clone();
 
@@ -173,7 +184,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(
             for rf in &mut ast.fields {
                 if index >= len {
                     // info parsed done, finsh the rest fields
-                    if rf.can_be_anytype() {
+                    if rf.is_array() {
                         rf.is_padding = true;
                     }
                     continue;
@@ -182,6 +193,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(
                 let f = &rst.fields[index];
 
                 if f.ty.get_type_id() == rf.get_type_id() {
+                    fix_detail_types(rf, f);
                     rf.name = f.name.clone();
                     rf.is_padding = false;
                     index += 1;
@@ -194,7 +206,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(
                             return Err(e);
                         }
                     }
-                } else if rf.can_be_anytype() {
+                } else if rf.is_array() {
                     rf.is_padding = true;
                 }
             }
@@ -217,12 +229,39 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(
             ast.is_union = true;
             ast.name = name;
 
+            if !ast.fields.is_empty() {
+                let start = ast.fields[0].range.0;
+                let end = ast.fields.last().unwrap().range.1;
+
+                let mut all = AnalysisField::padding(start, end);
+                all.is_padding = false;
+                all.name = Some("payload".to_string());
+
+                ast.fields.clear();
+                ast.fields.push(all);
+            }
+ 
             return Ok(());
         }
         RStructType::REnum(_rst) => {
             ast.is_enum = true;
             ast.is_union = false;
             ast.name = name;
+
+            if let Some(f) = ast.fields.first() {
+                let mut tag = f.clone();
+                tag.ty = AnalysisFieldType::IntType(AIntType::CEnum);
+                tag.name = Some("tag".to_string());
+
+                let start = ast.fields[1].range.0;
+                let end = ast.fields.last().unwrap().range.1;
+                let mut payload = AnalysisField::padding(start, end);
+                payload.is_padding = false;
+
+                ast.fields.clear();
+                ast.fields.push(tag);
+                ast.fields.push(payload);
+            }
 
             return Ok(());
         }

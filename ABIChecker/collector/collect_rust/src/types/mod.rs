@@ -41,7 +41,7 @@ impl From<BindgenError> for CollectError {
 #[derive(Debug, Serialize, Deserialize)]
 /// llvm basic types
 pub enum RType {
-    IntType,
+    IntType(RIntType),
     FloatType,
     ArrayType,
     PointerType,
@@ -54,10 +54,20 @@ impl RType {
         match self {
             RType::ArrayType => 0,
             RType::FloatType => 1,
-            RType::IntType => 2,
+            RType::IntType(_) => 2,
             RType::PointerType => 3,
             RType::StructType(_) => 4,
             RType::VecTorType => 5,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RIntType {
+    SignedInt,
+    UnsignedInt,
+    SignedChar,
+    UnsignedChar,
+    Bool,
+    RVoid,
 }

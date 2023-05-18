@@ -41,7 +41,7 @@ impl From<BindgenError> for CollectError {
 #[derive(Debug, Serialize, Deserialize)]
 /// llvm basic types
 pub enum CType {
-    IntType,
+    IntType(CIntType),
     FloatType,
     ArrayType,
     PointerType,
@@ -54,10 +54,21 @@ impl CType {
         match self {
             CType::ArrayType => 0,
             CType::FloatType => 1,
-            CType::IntType => 2,
+            CType::IntType(_) => 2,
             CType::PointerType => 3,
             CType::StructType(_) => 4,
             CType::VecTorType => 5,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum CIntType {
+    SignedInt,
+    UnsignedInt,
+    SignedChar,
+    UnsignedChar,
+    Bool,
+    CVoid,
+    CEnum,
 }

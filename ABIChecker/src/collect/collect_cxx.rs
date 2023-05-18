@@ -135,7 +135,7 @@ fn resolve_one_struct(
                 ));
             };
 
-        let mut ast = AnalysisStruct::from_ctx_raw(struct_type, &target_data);
+        let mut ast = AnalysisStruct::from_ctx_raw(struct_type, 0, &target_data);
 
         ast.is_union = true;
         ast.is_enum = false;
@@ -155,7 +155,7 @@ fn resolve_one_struct(
                 ));
             };
 
-        let mut ast = AnalysisStruct::from_ctx_raw(struct_type, &target_data);
+        let mut ast = AnalysisStruct::from_ctx_raw(struct_type, 0, &target_data);
 
         if let Err(e) = __resolve_one_struct(&mut ast, &cst) {
             return Err(e);
@@ -165,15 +165,47 @@ fn resolve_one_struct(
     }
 }
 
+fn fix_detail_types(raw_field: &mut AnalysisField, info_field: &CField) {
+    assert!(raw_field.get_type_id() == info_field.ty.get_type_id());
+    match (&mut raw_field.ty, &info_field.ty) {
+        (AnalysisFieldType::IntType(_), CType::IntType(cik)) => {
+            let nty = AIntType::from(cik);
+            raw_field.ty = AnalysisFieldType::IntType(nty)
+        }
+        _ => trace!("Unimplement Yet")
+    }
+}
+
 fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), String> {
     let name = cst.name.clone();
+
+    // for union type, no need to match fields
+    if cst.is_union {
+        ast.is_union = true;
+        ast.is_enum = false;
+        ast.name = name;
+
+        if !ast.fields.is_empty() {
+            let start = ast.fields[0].range.0;
+            let end = ast.fields.last().unwrap().range.1;
+
+            let mut all = AnalysisField::padding(start, end);
+            all.is_padding = false;
+            all.name = Some("payload".to_string());
+
+            ast.fields.clear();
+            ast.fields.push(all);
+        }
+
+        return  Ok(());
+    }
 
     let mut index = 0;
     let len = cst.fields.len();
     for rf in &mut ast.fields {
         if index >= len {
             // info parsed done, finsh the remaining fields
-            if rf.can_be_anytype() {
+            if rf.is_array() {
                 rf.is_padding = true;
             }
             continue;
@@ -182,6 +214,8 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), S
         let f = &cst.fields[index];
 
         if f.ty.get_type_id() == rf.get_type_id() {
+            println!("match");
+            fix_detail_types(rf, f);
             rf.name = f.name.clone();
             rf.is_padding = false;
             index += 1;
@@ -194,7 +228,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), S
                     return Err(e);
                 }
             }
-        } else if rf.can_be_anytype() {
+        } else if rf.is_array() {
             rf.is_padding = true;
         }
     }

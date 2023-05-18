@@ -13,9 +13,11 @@ pub fn collect_mangles(mangled: Vec<String>) -> HashMap<String, String> {
                 // println!("{:?} -> {:?}", n, ori);
             } else {
                 warn!("mangled name {:?} is not a valid mangled name", n);
+                map.insert(n.clone(), n);
             }
         } else {
             warn!("mangled name {:?} is not a valid mangled name", n);
+            map.insert(n.clone(), n);
         }
     }
 
