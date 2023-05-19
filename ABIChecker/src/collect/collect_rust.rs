@@ -113,7 +113,7 @@ fn resolve_one_struct(
         name
     } else {
         return Err(format!(
-            "resolve AnalysisStruct fail, anonymous structtype unsupported"
+            "resolve AnalysisStruct fail, anonymous struct type unsupported"
         ));
     };
 

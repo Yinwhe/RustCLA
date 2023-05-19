@@ -140,7 +140,7 @@ impl AnalysisStruct {
     pub fn from_ctx_raw(st: StructType, cur_off: u32, target_data: &TargetData) -> Self {
         let mut fields = Vec::new();
         let alignment = target_data.get_abi_alignment(&st);
-        let st_size = target_data.get_store_size(&st) as u32;
+        let st_size = target_data.get_abi_size(&st) as u32;
 
         let mut last_end = 0;
 
@@ -148,7 +148,7 @@ impl AnalysisStruct {
             let start = target_data
                 .offset_of_element(&st, index as u32)
                 .expect("Fatal Error, get element offset failed") as u32;
-            let end = start + target_data.get_store_size(&ty) as u32;
+            let end = start + target_data.get_abi_size(&ty) as u32;
 
             let fty = Self::get_type(ty.clone(), last_end + cur_off, target_data);
 
@@ -204,6 +204,19 @@ impl AnalysisStruct {
         let end = self.fields.last().unwrap().range.1;
 
         (start, end)
+    }
+
+    pub fn get_inner_type_one(&self) -> Option<AnalysisFieldType> {
+        if self.fields.len() != 1 {
+            return None;
+        }
+
+        let inner = self.fields.first().expect("Should not happen");
+        if let Some(st) = inner.get_struct() {
+            st.get_inner_type_one()
+        } else {
+            Some(inner.ty.clone())
+        }
     }
 
     pub fn temp(fields: Vec<AnalysisField>) -> Self {

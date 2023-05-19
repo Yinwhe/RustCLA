@@ -236,17 +236,25 @@ pub fn info_struct_analysis(
             } else if cf.is_struct() {
                 // normal to struct
                 let cst = cf.get_into_struct().expect("Should not happen");
-                let temp_rst = AnalysisStruct::temp(vec![rf]);
-                let sub_res = info_struct_analysis(temp_rst, cst, true);
-
-                result.merge(&sub_res);
-
-                if sub_res.is_error() {
+                if let Some(cf) = cst.get_inner_type_one() {
+                    if cf.get_type_id() != rf.get_type_id() {
+                        result.add_info(AnalysisResultContent::error(
+                            rrange,
+                            crange,
+                            AnalysisResultType::TypeMismatch,
+                            format!("Normal & Struct type mismatch"),
+                        ));
+                        return result;
+                    }
+                } else {
+                    result.add_info(AnalysisResultContent::error(
+                        rrange,
+                        crange,
+                        AnalysisResultType::TypeMismatch,
+                        format!("Normal & Struct type mismatch"),
+                    ));
                     return result;
                 }
-
-                // or ok
-                continue;
             } else {
                 // normal to array
                 if cf.is_padding {
@@ -272,17 +280,25 @@ pub fn info_struct_analysis(
             if cf.is_normal() {
                 // struct to normal
                 let rst = rf.get_into_struct().expect("Should not happen");
-                let temp_cst = AnalysisStruct::temp(vec![cf]);
-                let sub_res = info_struct_analysis(rst, temp_cst, true);
-
-                result.merge(&sub_res);
-
-                if sub_res.is_error() {
+                if let Some(rf) = rst.get_inner_type_one() {
+                    if rf.get_type_id() != cf.get_type_id() {
+                        result.add_info(AnalysisResultContent::error(
+                            rrange,
+                            crange,
+                            AnalysisResultType::TypeMismatch,
+                            format!("Struct & Normal type mismatch"),
+                        ));
+                        return result;
+                    }
+                } else {
+                    result.add_info(AnalysisResultContent::error(
+                        rrange,
+                        crange,
+                        AnalysisResultType::TypeMismatch,
+                        format!("Struct & Normal type mismatch"),
+                    ));
                     return result;
                 }
-
-                // or ok
-                continue;
             } else if cf.is_struct() {
                 // struct to struct
                 let rst = rf.get_into_struct().expect("Should not happen");
@@ -308,12 +324,11 @@ pub fn info_struct_analysis(
                 } else {
                     // we first take arrays as normal type
                     let rst = rf.get_into_struct().expect("Should not happen");
-                    let temp_cst = AnalysisStruct::temp(vec![cf]);
-                    let sub_res = info_struct_analysis(rst, temp_cst, true);
-
-                    if sub_res.is_empty() {
-                        // no errors, ok
-                        continue;
+                    if let Some(rf) = rst.get_inner_type_one() {
+                        if rf.get_type_id() == cf.get_type_id() {
+                            // inner type match, ok
+                            continue;
+                        }
                     }
 
                     // warn, is opaque ?
@@ -360,12 +375,11 @@ pub fn info_struct_analysis(
                 } else {
                     // we first take arrays as normal type
                     let cst = cf.get_into_struct().expect("Should not happen");
-                    let temp_rst = AnalysisStruct::temp(vec![rf]);
-                    let sub_res = info_struct_analysis(temp_rst, cst, true);
-
-                    if sub_res.is_empty() {
-                        // no errors, ok
-                        continue;
+                    if let Some(cf) = cst.get_inner_type_one() {
+                        if rf.get_type_id() == cf.get_type_id() {
+                            // inner type match, ok
+                            continue;
+                        }
                     }
 
                     // warn, is opaque ?

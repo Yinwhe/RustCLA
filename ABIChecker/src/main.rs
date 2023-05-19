@@ -22,6 +22,7 @@ pub const HOME: &str = env!("HOME");
 pub const CLANG: &str = "clang";
 pub const RUSTC: &str = "rustc";
 
+
 #[derive(Parser)]
 struct Args {
     #[clap(short, long)]
