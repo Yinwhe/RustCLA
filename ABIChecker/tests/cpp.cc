@@ -1,4 +1,4 @@
-struct A {
+typedef struct {
     int a;
-    int b[1];
-};
+    int b;
+} my_struct;
