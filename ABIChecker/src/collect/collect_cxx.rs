@@ -1,21 +1,38 @@
-use std::process::Command;
+use std::{fs, path::Path, process::Command};
 
 use inkwell::{context::Context, module::Module, targets::TargetData, values::FunctionValue};
 
 use super::{ctypes::*, helper::collect_mangles};
-use crate::{analysis_types::*, target::host_target, CLANG, HOME};
+use crate::{analysis_types::*, target::host_target, Args, CLANG, HOME};
 
 const COLLECT_CXX: &str = "$HOME/.abi_checker/collect_cxx";
 
 #[inline]
 pub fn collect_info_from_cpp_file<'cx>(
     file: &str,
-    _clang_target: Option<&str>,
-    _cpp_standard: Option<&str>,
     cx: &'cx Context,
+    args: &Args,
 ) -> Result<Analysis, String> {
+    // let include_path = match &args.cpp_include {
+    //     Some(include) => include
+    //         .iter()
+    //         .map(|s| format!("-I{}", s))
+    //         .collect::<Vec<String>>()
+    //         .join(" "),
+    //     None => "".to_string(),
+    // };
+    let include_path = args
+        .cpp_include
+        .iter()
+        .map(|s| format!("-I{}", s))
+        .collect::<Vec<String>>()
+        .join(" ");
+
     let res = Command::new("sh")
-        .args(&["-c", &format!("{} {}", COLLECT_CXX, file)])
+        .args(&[
+            "-c",
+            &format!("{} {} {}", COLLECT_CXX, file, args.cpp_include.join(" ")),
+        ])
         .output()
         .expect("failed to execute process");
 
@@ -28,8 +45,13 @@ pub fn collect_info_from_cpp_file<'cx>(
             String::from_utf8_lossy(&res.stderr)
         ));
     };
-    
-    generate_bcfile(file)?;
+
+    let path = Path::new(file);
+
+    if !args.no_pad_info {
+        add_root(&path, &cinfo)?;
+    }
+    generate_bcfile(path, &include_path)?;
 
     // parse bc code
     let module = match Module::parse_bitcode_from_path(format!("{HOME}/.abi_checker/cpp.bc"), cx) {
@@ -50,7 +72,8 @@ pub fn collect_info_from_cpp_file<'cx>(
                 // resolve ok
                 structs.push(st);
             }
-            Err(msg) => { // rersolve error
+            Err(msg) => {
+                // rersolve error
                 warn!("collect cpp struct info fails: {:?}", msg);
                 // TODO
             }
@@ -82,24 +105,89 @@ pub fn collect_info_from_cpp_file<'cx>(
             }
         } else {
             // TODO
-            warn!("collect cpp function fails: func {} not found in binarycode", cfunc.name);
+            warn!(
+                "collect cpp function fails: func {} not found in binarycode",
+                cfunc.name
+            );
         }
     }
 
     Ok(Analysis { structs, functions })
 }
 
-fn generate_bcfile(file: &str) -> Result<(), String> {
+fn add_root(path: &Path, cinfo: &CInfo) -> Result<(), String> {
+    let mut buf = match fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) => return Err(format!("add root fails, due to {:?}", e)),
+    };
+
+    let stnames: Vec<String> = cinfo
+        .structs
+        .iter()
+        .filter(|st| !st.fields.is_empty())
+        .filter_map(|st| st.name.to_owned())
+        // .filter(|n| !n.starts_with("_"))
+        .collect();
+
+    let mut index = 0;
+    let len = stnames.len();
+    while index < stnames.len() {
+        if len - index >= 4 {
+            let a = &stnames[index];
+            let b = &stnames[index + 1];
+            let c = &stnames[index + 2];
+            let d = &stnames[index + 3];
+            let s = format!(
+                "\nvoid root{}({} a, {} b, {} c, {} d){{}};\n",
+                index, a, b, c, d
+            );
+            buf.push_str(&s);
+            index += 4;
+        } else {
+            let a = &stnames[index];
+            let s = format!("\nvoid root{}({} a){{}};\n", index, a);
+            buf.push_str(&s);
+            index += 1;
+        }
+    }
+
+    if let Err(e) = fs::write(&format!("{HOME}/.abi_checker/cpp.cc"), buf) {
+        return Err(format!("add root fails, due to {:?}", e));
+    }
+
+    Ok(())
+}
+
+fn generate_bcfile(path: &Path, include_path: &str) -> Result<(), String> {
+    let file = path.parent().unwrap().join("analysis_cpp.cc");
+    if let Err(e) = fs::copy(&format!("{HOME}/.abi_checker/cpp.cc"), &file) {
+        return Err(format!("generate bc file fails, due to {:?}", e));
+    }
+
+    // print!(
+    //     "{}",
+    //     &format!(
+    //         "{} -c -emit-llvm -o $HOME/.abi_checker/cpp.bc {} {}",
+    //         CLANG,
+    //         include_path,
+    //         file.to_str().unwrap()
+    //     )
+    // );
+
     let res = Command::new("sh")
         .args(&[
             "-c",
             &format!(
-                "{} -c -emit-llvm -o $HOME/.abi_checker/cpp.bc {}",
-                CLANG, file
+                "{} -c -emit-llvm -o $HOME/.abi_checker/cpp.bc {} {}",
+                CLANG,
+                include_path,
+                file.to_str().unwrap()
             ),
         ])
         .output()
         .expect("failed to execute process");
+
+    // fs::remove_file(file).unwrap_or_default();
 
     if res.status.success() {
         Ok(())
@@ -172,7 +260,7 @@ fn fix_detail_types(raw_field: &mut AnalysisField, info_field: &CField) {
             let nty = AIntType::from(cik);
             raw_field.ty = AnalysisFieldType::IntType(nty)
         }
-        _ => trace!("Unimplement Yet")
+        _ => trace!("Unimplement Yet"),
     }
 }
 
@@ -197,7 +285,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), S
             ast.fields.push(all);
         }
 
-        return  Ok(());
+        return Ok(());
     }
 
     let mut index = 0;
@@ -214,7 +302,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, cst: &CStruct) -> Result<(), S
         let f = &cst.fields[index];
 
         if f.ty.get_type_id() == rf.get_type_id() {
-            println!("match");
+            // println!("match");
             fix_detail_types(rf, f);
             rf.name = f.name.clone();
             rf.is_padding = false;

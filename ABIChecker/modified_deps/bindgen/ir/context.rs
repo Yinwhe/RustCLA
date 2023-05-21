@@ -531,6 +531,7 @@ impl BindgenContext {
         let parse_options =
             clang_sys::CXTranslationUnit_DetailedPreprocessingRecord;
 
+        // println!("options.clang_args: {:?}", options.clang_args);
         let translation_unit = {
             let _t =
                 Timer::new("translation_unit").with_output(options.time_phases);

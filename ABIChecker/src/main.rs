@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, time::Instant};
 
 use analysis_types::{Analysis, AnalysisFunction, AnalysisStruct};
 use ansi_term::Color;
@@ -24,31 +24,38 @@ pub const RUSTC: &str = "rustc";
 
 
 #[derive(Parser)]
-struct Args {
+pub struct Args {
     #[clap(short, long)]
     rustfile: String,
     #[clap(short, long)]
     cppfile: String,
+    #[clap(long, default_value = "false")]
+    no_pad_info: bool,
+    // #[clap(long)]
+    cpp_include: Vec<String>,
 }
 
 fn main() {
+    let start = Instant::now();
     pretty_env_logger::init();
     let args = Args::parse();
 
     let c_cx = Context::create();
     let r_cx = Context::create();
     
+    let start_collect = start.elapsed();
     let rinfo = collect::collect_info_from_rust_file(
         &args.rustfile,
         &r_cx,
+        &args,
     );
 
     let cinfo = collect::collect_info_from_cpp_file(
         &args.cppfile,
-        None,
-        None,
         &c_cx,
+        &args,  
     );
+    let end_collect = start.elapsed();
 
     debug!("cinfo {:#?}", cinfo);
     debug!("rinfo {:#?}", rinfo);
@@ -71,13 +78,18 @@ fn main() {
 
     out_crinfos(&rinfo, &cinfo);
 
-    analysis_struct(rinfo.structs, cinfo.structs);
-    analysis_funcs(rinfo.functions, cinfo.functions);
+    let start_analysis = start.elapsed();
+    let s = analysis_struct(rinfo.structs, cinfo.structs);
+    let f = analysis_funcs(rinfo.functions, cinfo.functions);
+    let end_analysis = start.elapsed();
 
-    print!("{}", Color::Green.paint("[Analysis] analysis done"));
+    print!("{}", Color::Green.paint("[Analysis] analysis done\n"));
+    print!("Analyze {} structs and {} functions\n", s, f);
+    print!("Time spent on collect info: {:?}\n", end_collect - start_collect);
+    print!("Time spent on analysis: {:?}\n", end_analysis - start_analysis);
 }
 
-fn analysis_struct(rsts: Vec<AnalysisStruct>, csts: Vec<AnalysisStruct>) {
+fn analysis_struct(rsts: Vec<AnalysisStruct>, csts: Vec<AnalysisStruct>) -> u32{
     let mut rst_map = HashMap::new();
     let mut cst_map = HashMap::new();
 
@@ -93,6 +105,7 @@ fn analysis_struct(rsts: Vec<AnalysisStruct>, csts: Vec<AnalysisStruct>) {
     let cst_names: HashSet<&String> = cst_map.keys().collect();
 
     let todos: Vec<&String> = rst_names.intersection(&cst_names).cloned().collect();
+    let len = todos.len();
 
     print!(
         "\n{} structs to be analyzed: {:?}\n",
@@ -174,9 +187,11 @@ fn analysis_struct(rsts: Vec<AnalysisStruct>, csts: Vec<AnalysisStruct>) {
             );
         }
     }
+    
+    len as u32
 }
 
-fn analysis_funcs(rfuncs: Vec<AnalysisFunction>, cfuncs: Vec<AnalysisFunction>) {
+fn analysis_funcs(rfuncs: Vec<AnalysisFunction>, cfuncs: Vec<AnalysisFunction>) -> u32 {
     let mut rfunc_map = HashMap::new();
     let mut cfunc_map = HashMap::new();
 
@@ -192,6 +207,7 @@ fn analysis_funcs(rfuncs: Vec<AnalysisFunction>, cfuncs: Vec<AnalysisFunction>) 
     let cfunc_names: HashSet<&String> = cfunc_map.keys().collect();
 
     let todos: Vec<&String> = rfunc_names.intersection(&cfunc_names).cloned().collect();
+    let len = todos.len();
 
     print!(
         "\n{} functions to be analyzed: {:?}\n",
@@ -230,6 +246,8 @@ fn analysis_funcs(rfuncs: Vec<AnalysisFunction>, cfuncs: Vec<AnalysisFunction>) 
             print!("{} {:?}\n", Color::Blue.paint("Function sig in cpp side"), cfunc)
         }
     }
+
+    len as u32
 }
 
 fn out_crinfos(rinfo: &Analysis, cinfo: &Analysis) {

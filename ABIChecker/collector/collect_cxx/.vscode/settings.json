@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.c": "c",
+        "atomic": "cpp",
+        "cstdint": "cpp"
+    }
+}

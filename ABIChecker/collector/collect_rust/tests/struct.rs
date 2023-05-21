@@ -1,22 +1,24 @@
 #[repr(C)]
-pub struct T {
-    a: ::std::os::raw::c_char,
+#[derive(Debug, Copy, Clone)]
+pub struct _iJIT_Method_Load_V2 {
+    pub method_id: ::std::os::raw::c_uint,
+    pub method_name: *mut ::std::os::raw::c_char,
+    pub method_load_address: *mut ::std::os::raw::c_void,
+    pub method_size: ::std::os::raw::c_uint,
+    pub line_number_size: ::std::os::raw::c_uint,
+    pub line_number_table: pLineNumberInfo,
+    pub class_file_name: *mut ::std::os::raw::c_char,
+    pub source_file_name: *mut ::std::os::raw::c_char,
+    pub module_name: *mut ::std::os::raw::c_char,
 }
+
+pub type pLineNumberInfo = *mut _LineNumberInfo;
 
 #[repr(C)]
-pub struct A {
-    a: ::std::os::raw::c_int,
-    ptr: ::std::os::raw::c_void,
-    t: T,
+#[derive(Debug, Copy, Clone)]
+pub struct _LineNumberInfo {
+    #[doc = "<\\brief Offset from the begining of the code region."]
+    pub Offset: ::std::os::raw::c_uint,
+    #[doc = "<\\brief Matching source line number offset (from beginning of source file)."]
+    pub LineNumber: ::std::os::raw::c_uint,
 }
-
-// #[repr(C)]
-// pub struct B {
-//     opaque: [::std::os::raw::c_int; 2]
-// }
-
-
-// #[no_mangle]
-// pub extern "C" fn root(a: A, b: B) {
-
-// }

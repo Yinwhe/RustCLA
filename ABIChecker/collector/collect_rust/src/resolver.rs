@@ -6,7 +6,9 @@ use cbindgen_rust_parser::{
 };
 use log::{debug, warn};
 
-use crate::{CollectError, REnum, RField, RFunction, RInfo, RStruct, RStructType, RType, RIntType, RUnion};
+use crate::{
+    CollectError, REnum, RField, RFunction, RInfo, RIntType, RStruct, RStructType, RType, RUnion,
+};
 
 pub struct Resolver {
     parse: Parse,
@@ -97,7 +99,7 @@ impl Resolver {
                     } else {
                         Some(RType::IntType(RIntType::UnsignedInt))
                     }
-                },
+                }
                 PrimitiveType::PtrDiffT => Some(RType::PointerType),
                 PrimitiveType::SChar => Some(RType::IntType(RIntType::SignedChar)),
                 PrimitiveType::UChar => Some(RType::IntType(RIntType::UnsignedChar)),
@@ -120,6 +122,13 @@ impl Resolver {
             assert!(item.len() == 1);
             let item = item.pop().expect("unions not found");
             self.resolve_struct(item).map(|st| RType::StructType(st))
+        } else if let Some(mut item) = self.parse.typedefs.get_items(path) {
+            assert!(item.len() == 1);
+            let item = item.pop().expect("typedefs not found");
+            match item {
+                ItemContainer::Typedef(ty) => self.resolve_btype_to_rtype(ty.aliased),
+                _ => None,
+            }
         } else {
             None
         }
@@ -176,11 +185,7 @@ impl Resolver {
             }
         };
 
-        Some(RFunction {
-            name,
-            args,
-            ret,
-        })
+        Some(RFunction { name, args, ret })
     }
 }
 

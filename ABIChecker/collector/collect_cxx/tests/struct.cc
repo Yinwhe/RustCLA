@@ -19,8 +19,13 @@
 
 // void root(foo f, bar b){}
 
+#include <math.h>
+
+typedef struct {
+  int a;
+} B;
+
 struct A {
   int a;
-
-  void hello();
+  B b;
 };

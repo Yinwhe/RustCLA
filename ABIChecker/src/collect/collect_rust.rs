@@ -1,12 +1,16 @@
 use inkwell::{context::Context, module::Module, targets::TargetData, values::FunctionValue};
-use std::process::Command;
+use std::{fs, process::Command};
 
 use super::{helper::collect_mangles, rtypes::*};
-use crate::{analysis_types::*, target::host_target, RUSTC, HOME};
+use crate::{analysis_types::*, target::host_target, HOME, RUSTC, Args};
 
 const COLLECT_RUST: &str = "$HOME/.abi_checker/collect_rust";
 
-pub fn collect_info_from_rust_file(file: &str, cx: &Context) -> Result<Analysis, String> {
+pub fn collect_info_from_rust_file(
+    file: &str,
+    cx: &Context,
+    args: &Args
+) -> Result<Analysis, String> {
     let res = Command::new("sh")
         .args(["-c", &format!("{} {}", COLLECT_RUST, file)])
         .output()
@@ -22,7 +26,10 @@ pub fn collect_info_from_rust_file(file: &str, cx: &Context) -> Result<Analysis,
         ));
     };
 
-    generate_bcfile(file)?;
+    if !args.no_pad_info {
+        add_root(file, &rinfo)?;
+    }
+    generate_bcfile(&format!("{HOME}/.abi_checker/rust.rs"))?;
 
     // parse bc code
     let module = match Module::parse_bitcode_from_path(format!("{HOME}/.abi_checker/rust.bc"), cx) {
@@ -75,11 +82,56 @@ pub fn collect_info_from_rust_file(file: &str, cx: &Context) -> Result<Analysis,
             }
         } else {
             // TODO
-            warn!("collect rust function fails: func {} not found in binarycode", rfunc.name);
+            warn!(
+                "collect rust function fails: func {} not found in binarycode",
+                rfunc.name
+            );
         }
     }
 
     Ok(Analysis { structs, functions })
+}
+
+fn add_root(file: &str, rinfo: &RInfo) -> Result<(), String> {
+    let mut buf = match fs::read_to_string(file) {
+        Ok(s) => s,
+        Err(e) => return Err(format!("add root fails, due to {:?}", e)),
+    };
+
+    let stnames: Vec<String> = rinfo
+        .structs
+        .iter()
+        .filter_map(|st| st.get_name().map(|s| s.to_string()))
+        // .filter(|n| !n.starts_with("_"))
+        .collect();
+
+    let mut index = 0;
+    let len = stnames.len();
+    while index < stnames.len() {
+        if len - index >= 4 {
+            let a = &stnames[index];
+            let b = &stnames[index + 1];
+            let c = &stnames[index + 2];
+            let d = &stnames[index + 3];
+            let s = format!(
+                "\n#[no_mangle]\nextern \"C\" fn root{}(a: {}, b: {}, c: {}, d: {}){{}}\n",
+                index, a, b, c, d
+            );
+            buf.push_str(&s);
+            index += 4;
+        } else {
+            let a = &stnames[index];
+            let s = format!("\n#[no_mangle]\nextern \"C\" fn root{}(a: {}){{}}\n", index, a);
+            buf.push_str(&s);
+            index += 1;
+        }
+    }
+
+    if let Err(e) = fs::write(&format!("{HOME}/.abi_checker/rust.rs"), buf) {
+        return Err(format!("add root fails, due to {:?}", e));
+    }
+
+    Ok(())
 }
 
 fn generate_bcfile(file: &str) -> Result<(), String> {
@@ -170,7 +222,7 @@ fn fix_detail_types(raw_field: &mut AnalysisField, info_field: &RField) {
             let nty = AIntType::from(rik);
             raw_field.ty = AnalysisFieldType::IntType(nty)
         }
-        _ => trace!("Unimplement Yet")
+        _ => trace!("Unimplement Yet"),
     }
 }
 
@@ -240,7 +292,7 @@ fn __resolve_one_struct(ast: &mut AnalysisStruct, rst: &RStructType) -> Result<(
                 ast.fields.clear();
                 ast.fields.push(all);
             }
- 
+
             return Ok(());
         }
         RStructType::REnum(_rst) => {

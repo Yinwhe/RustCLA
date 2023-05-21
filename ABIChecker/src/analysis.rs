@@ -112,6 +112,7 @@ pub fn info_struct_analysis(
                     c_match = Vec::new();
                     r_index += 1;
                     c_index += 1;
+                    accumulate = 0;
 
                     status = AnalysisStatus::Match;
                 } else if rf_size > cf_size + accumulate {
@@ -155,6 +156,7 @@ pub fn info_struct_analysis(
                     r_match = Vec::new();
                     r_index += 1;
                     c_index += 1;
+                    accumulate = 0;
 
                     status = AnalysisStatus::Match;
                 } else if rf_size + accumulate < cf_size {
@@ -225,13 +227,13 @@ pub fn info_struct_analysis(
                     // ok match
                     continue;
                 } else {
-                    result.add_info(AnalysisResultContent::error(
+                    result.add_info(AnalysisResultContent::warn(
                         rrange,
                         crange,
                         AnalysisResultType::TypeMismatch,
                         format!("Normal & Normal type mismatch"),
                     ));
-                    return result;
+                    // return result;
                 }
             } else if cf.is_struct() {
                 // normal to struct
