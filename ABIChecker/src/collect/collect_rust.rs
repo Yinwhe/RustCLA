@@ -2,7 +2,7 @@ use inkwell::{context::Context, module::Module, targets::TargetData, values::Fun
 use std::{fs, process::Command};
 
 use super::{helper::collect_mangles, rtypes::*};
-use crate::{analysis_types::*, target::host_target, HOME, RUSTC, Args};
+use crate::{analysis::*, target::host_target, HOME, RUSTC, Args};
 
 const COLLECT_RUST: &str = "$HOME/.abi_checker/collect_rust";
 

@@ -3,7 +3,7 @@ use std::{fs, path::Path, process::Command};
 use inkwell::{context::Context, module::Module, targets::TargetData, values::FunctionValue};
 
 use super::{ctypes::*, helper::collect_mangles};
-use crate::{analysis_types::*, target::host_target, Args, CLANG, HOME};
+use crate::{analysis::*, target::host_target, Args, CLANG, HOME};
 
 const COLLECT_CXX: &str = "$HOME/.abi_checker/collect_cxx";
 

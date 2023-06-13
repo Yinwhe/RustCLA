@@ -1,4 +1,4 @@
-use crate::analysis_types::*;
+use super::analysis_types::*;
 
 /// Three parts: align, size, type
 pub fn info_struct_analysis(
