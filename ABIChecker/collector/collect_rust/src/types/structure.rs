@@ -11,7 +11,7 @@ pub enum RStructType {
     RUnion(RUnion)
 }
 
-impl  RStructType {
+impl RStructType {
     pub fn get_name(&self) -> Option<&str> {
         match self {
             RStructType::RStruct(rst) => rst.name.as_deref(),
