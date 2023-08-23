@@ -1,0 +1,3 @@
+mod collect;
+
+fn main() {}

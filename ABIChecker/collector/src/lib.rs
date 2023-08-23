@@ -4,6 +4,8 @@ mod types;
 use log::warn;
 use resolve::*;
 
+pub use types::*;
+
 pub fn parse_rust(file: &str) -> Option<Info> {
     match ResolverR::new(file) {
         Ok(mut resolver) => match resolver.resolve_cbindgen_one() {
