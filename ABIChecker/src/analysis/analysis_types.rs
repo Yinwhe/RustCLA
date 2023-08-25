@@ -1,3 +1,6 @@
+/// We define some structure to integrate source and ir 
+/// information, so we can analyze them easily.
+
 use std::fmt::Debug;
 
 use inkwell::{
@@ -13,6 +16,8 @@ pub struct Analysis {
     pub functions: Vec<AnalysisFunction>,
 }
 
+/// `AnalysisStruct` will store a structure's ir and source info, 
+/// like, field type, memory layout, etc.
 #[derive(Debug, Clone)]
 pub struct AnalysisStruct {
     pub name: Option<String>,
@@ -22,19 +27,23 @@ pub struct AnalysisStruct {
     pub fields: Vec<AnalysisField>,
     pub alignment: u32,
 
+    /// temp is specially used when we
     pub temp: bool,
 }
 
+/// field is struct's field
 #[derive(Clone)]
 pub struct AnalysisField {
-    pub name: Option<String>,
-    pub is_padding: bool,
+    pub name: Option<String>,   /// it may have name
+    pub is_padding: bool,       /// or may be a padding
 
-    pub ty: AnalysisFieldType,
-    pub range: (u32, u32),
-    pub temp: bool, // _inner: BasicTypeEnum,
+    pub ty: AnalysisFieldType,  /// field type
+    pub range: (u32, u32),      /// memory layout
+    pub temp: bool,
+    // _inner: BasicTypeEnum,
 }
 
+/// Field type, maybe replaced by [`LLVMType`] later.
 #[derive(Debug, Clone)]
 pub enum AnalysisFieldType {
     /// A contiguous homogeneous container type.

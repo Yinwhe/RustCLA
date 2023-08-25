@@ -13,6 +13,21 @@ pub fn collect_info_from_cpp_file<'cx>(
     cx: &'cx Context,
     args: &Args,
 ) -> Result<Analysis, String> {
+    // let include_path = match &args.cpp_include {
+    //     Some(include) => include
+    //         .iter()
+    //         .map(|s| format!("-I{}", s))
+    //         .collect::<Vec<String>>()
+    //         .join(" "),
+    //     None => "".to_string(),
+    // };
+    let include_path = args
+        .cpp_include
+        .iter()
+        .map(|s| format!("-I{}", s))
+        .collect::<Vec<String>>()
+        .join(" ");
+
     let res = Command::new("sh")
         .args(&[
             "-c",

@@ -15,11 +15,11 @@ use crate::types::{
     CollectError, DetailIntType, Field, FunctionType, LLVMType, Struct, StructType, Union,
 };
 
+/// Used to resolve c/c++ codes
 pub struct Resolver {
     ctx: BindgenContext,
     structs: HashMap<String, StructType>,
     funcs: HashMap<String, FunctionType>,
-    // typedefs: HashMap<String, TypeDef>,
 }
 
 impl Resolver {
@@ -37,17 +37,25 @@ impl Resolver {
         })
     }
 
+    /// resolve one file.
+    /// bindgen parser will parse a file and return bindgen ir, 
+    /// thus we shall resolve this ir into our structure.
+    /// 
+    /// bindngen ir is a graph structire.
     pub fn resolve_bindgen_one(&mut self) -> Result<Info, CollectError> {
+        // get all items in the graph, and resolve these items one by one
         let items = self.ctx.items();
         let mut top_ids = Vec::new();
+
         for (item_id, item) in items {
             match item.kind() {
+                // a module is a namespace
                 ItemKind::Module(_module) => {
                     top_ids.push(item_id);
                 }
                 ItemKind::Type(ty) => {
                     if !top_ids.contains(&item.parent_id()) {
-                        // Non-top items shall not be parsed here
+                        // Non-top items shall not be parsed here.
                         continue;
                     }
                     match ty.kind() {
@@ -82,6 +90,8 @@ impl Resolver {
                         args: Vec::new(),
                         ret: None,
                     };
+
+                    // function info actually are stored in functionsig type
                     if let Some((args, ret)) = self.resolve_function(func.signature()) {
                         cfunc.args = args;
                         cfunc.ret = ret;
@@ -106,6 +116,7 @@ impl Resolver {
         })
     }
 
+    /// resolve ailas, that is, typedef.
     fn resolve_alias(&self, alias: &TypeId) -> Option<LLVMType> {
         let ty = self.ctx.resolve_type(alias.clone());
         match ty.kind() {
@@ -115,6 +126,7 @@ impl Resolver {
         }
     }
 
+    /// resolve bindgen type to our type.
     fn resolve_btype_to_ctype(&self, ty: &Type) -> Option<LLVMType> {
         match ty.kind() {
             TypeKind::Array(_, _) => Some(LLVMType::ArrayType),
@@ -188,8 +200,8 @@ impl Resolver {
 
     fn resolve_struct(&self, st: &CompInfo) -> Option<StructType> {
         let mut fields = Vec::new();
-        let layout = st.layout(&self.ctx);
-        let _is_packed = st.is_packed(&self.ctx, layout.as_ref());
+        // let layout = st.layout(&self.ctx);
+        // let is_packed = st.is_packed(&self.ctx, layout.as_ref());
         let is_union = st.is_union();
 
         if is_union {
@@ -223,7 +235,7 @@ impl Resolver {
                     ty: ctype,
                 });
             }
-
+            // resolve return values
             let ret = {
                 let ty = self.ctx.resolve_type(fsig.return_type());
                 if ty.is_void() {
@@ -241,7 +253,7 @@ impl Resolver {
     }
 }
 
-/// Use `bindgen` parser to parse cxx codes
+/// Use `bindgen` parser to parse cxx codes, bindgen ir returned.
 fn bindgen_parse_one(file: &str, clang_args: &[&str]) -> Result<BindgenContext, BindgenError> {
     let builder = bindgen_cxx_parser::Builder::default()
         .clang_args(clang_args)

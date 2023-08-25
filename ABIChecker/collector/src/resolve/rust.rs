@@ -12,6 +12,7 @@ use crate::types::{
 
 use super::Info;
 
+/// Used to resolve rust codes
 pub struct Resolver {
     parse: Parse,
     structs: HashMap<String, StructType>,
@@ -23,6 +24,7 @@ impl Resolver {
     pub fn new(file: &str) -> Result<Self, CollectError> {
         let parse = cbindgen_parse_one(file)?;
         debug!("{:#?}", parse);
+
         Ok(Self {
             parse,
             structs: HashMap::new(),
@@ -31,6 +33,9 @@ impl Resolver {
         })
     }
 
+    /// resolve one file.
+    /// cbindgen parser will parse a file and return cbindgen ir, 
+    /// thus we shall resolve this ir into our structure.
     pub fn resolve_cbindgen_one(&mut self) -> Result<Info, CollectError> {
         // resolve structs
         for item in self.parse.structs.to_vec() {
@@ -83,6 +88,7 @@ impl Resolver {
         })
     }
 
+    /// resolve cbindgen type to our type
     fn resolve_btype_to_rtype(&self, ty: Type) -> Option<LLVMType> {
         match ty {
             Type::Ptr { .. } => Some(LLVMType::PointerType),
@@ -111,6 +117,7 @@ impl Resolver {
         }
     }
 
+    /// cbindgen sometimes use paths to express ref to a type
     fn resolve_path(&self, path: &Path) -> Option<LLVMType> {
         if let Some(mut item) = self.parse.structs.get_items(path) {
             assert!(item.len() == 1);

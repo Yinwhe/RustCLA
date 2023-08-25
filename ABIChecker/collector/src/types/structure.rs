@@ -18,8 +18,6 @@ pub enum StructType {
 pub struct Struct {
     pub name: Option<String>,
     pub fields: Vec<Field>,
-    // pub methods: Vec<RFunction>,
-    // pub is_packed: bool,
 }
 
 #[derive(Debug)]

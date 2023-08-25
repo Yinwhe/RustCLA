@@ -1,6 +1,6 @@
-use std::{collections::HashMap};
 use cpp_demangle::Symbol;
 use log::warn;
+use std::collections::HashMap;
 
 pub fn collect_mangles(mangled: Vec<String>) -> HashMap<String, String> {
     let mut map = HashMap::new();

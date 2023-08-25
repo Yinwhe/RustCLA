@@ -5,7 +5,10 @@ use log::warn;
 use resolve::*;
 
 pub use types::*;
+pub use resolve::Info;
 
+
+/// parse rust codes and get its info
 pub fn parse_rust(file: &str) -> Option<Info> {
     match ResolverR::new(file) {
         Ok(mut resolver) => match resolver.resolve_cbindgen_one() {
@@ -22,6 +25,7 @@ pub fn parse_rust(file: &str) -> Option<Info> {
     }
 }
 
+/// parse c/c++ codes and get its info
 pub fn parse_cxx(file: &str) -> Option<Info> {
     match ResolverC::new(&file, &["-std=c++11"]) {
         Ok(mut resolve) => match resolve.resolve_bindgen_one() {

@@ -1,3 +1,6 @@
+/// This module defines types we used to express structures and
+/// functions in rust or c/c++
+
 use bindgen_cxx_parser::BindgenError as CSideBindgenError;
 use cbindgen_rust_parser::Error as RSideBindgenError;
 
