@@ -8,7 +8,6 @@ use inkwell::{
     types::{BasicTypeEnum, StructType},
 };
 
-use crate::collect::{RIntType, CIntType};
 
 #[derive(Debug)]
 pub struct Analysis {
@@ -27,7 +26,7 @@ pub struct AnalysisStruct {
     pub fields: Vec<AnalysisField>,
     pub alignment: u32,
 
-    /// temp is specially used when we
+    /// temp is specially used when we ...
     pub temp: bool,
 }
 
@@ -43,7 +42,7 @@ pub struct AnalysisField {
     // _inner: BasicTypeEnum,
 }
 
-/// Field type, maybe replaced by [`LLVMType`] later.
+/// Field type, similar to [`LLVMType`] but inner structs are different
 #[derive(Debug, Clone)]
 pub enum AnalysisFieldType {
     /// A contiguous homogeneous container type.
@@ -61,7 +60,7 @@ pub enum AnalysisFieldType {
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AIntType {
     SignedInt,
     UnsignedInt,
@@ -72,48 +71,8 @@ pub enum AIntType {
     CEnum,
 }
 
-impl From<&RIntType> for AIntType {
-    fn from(value: &RIntType) -> Self {
-        match value {
-            RIntType::Bool => Self::Bool,
-            RIntType::SignedInt => Self::SignedInt,
-            RIntType::UnsignedInt => Self::UnsignedInt,
-            RIntType::SignedChar => Self::SignedChar,
-            RIntType::UnsignedChar => Self::UnsignedChar,
-            RIntType::RVoid => Self::Void,
-        }
-    }
-}
-
-impl From<&CIntType> for AIntType {
-    fn from(value: &CIntType) -> Self {
-        match value {
-            CIntType::Bool => Self::Bool,
-            CIntType::SignedInt => Self::SignedInt,
-            CIntType::UnsignedInt => Self::UnsignedInt,
-            CIntType::SignedChar => Self::SignedChar,
-            CIntType::UnsignedChar => Self::UnsignedChar,
-            CIntType::CEnum => Self::CEnum,
-            CIntType::CVoid => Self::Void,
-        }
-    }
-}
-
-impl AIntType {
-    pub fn get_type_id(&self) -> u32 {
-        match self {
-            Self::SignedInt => 0,
-            Self::UnsignedInt => 1,
-            Self::SignedChar => 2,
-            Self::UnsignedChar => 3,
-            Self::Bool => 4,
-            Self::Void => 5,
-            Self::CEnum => 6,
-        }
-    }
-}
-
 impl AnalysisFieldType {
+    /// Get the type id of the field type.
     pub fn get_type_id(&self) -> u32 {
         match self {
             AnalysisFieldType::ArrayType => 0,
@@ -125,27 +84,30 @@ impl AnalysisFieldType {
         }
     }
 
+    /// Whether two field types are the same.
+    /// Currrently we only check the inner of int type.
     pub fn type_match(a: &AnalysisFieldType, b: &AnalysisFieldType) -> bool {
-        if a.get_type_id() != b.get_type_id() {
+        if a.get_type_id() == b.get_type_id() {
             false
         } else {
-            match a {
-                Self::IntType(_) => a.get_int_type_id() == b.get_int_type_id(),
+            match (a, b) {
+                (Self::IntType(a), Self::IntType(b)) => a == b,
                 _ => true,
             }
         }
     }
 
-    pub fn get_int_type_id(&self) -> u32 {
-        if let Self::IntType(ik) = self {
-            ik.get_type_id()
-        } else {
-            panic!("Ccannot get int type id from non-int types")
-        }
-    }
+    // pub fn get_int_type_id(&self) -> u32 {
+    //     if let Self::IntType(ik) = self {
+    //         ik.get_type_id()
+    //     } else {
+    //         panic!("Ccannot get int type id from non-int types")
+    //     }
+    // }
 }
 
 impl AnalysisStruct {
+    /// Create a new struct from a llvm struct.
     pub fn from_ctx_raw(st: StructType, cur_off: u32, target_data: &TargetData) -> Self {
         let mut fields = Vec::new();
         let alignment = target_data.get_abi_alignment(&st);
@@ -175,7 +137,8 @@ impl AnalysisStruct {
 
                 ty: fty,
                 range: (start + cur_off, end + cur_off),
-                temp: false, // _inner: ty,
+                temp: false,
+                // _inner: ty,
             });
         }
 
@@ -253,20 +216,6 @@ impl AnalysisStruct {
         fields
     }
 
-    // /// Get the type of the struct.
-    // /// 0: struct
-    // /// 1: enum(rust)
-    // /// 2: union
-    // pub fn get_struct_type(&self) -> u32 {
-    //     if self.is_enum {
-    //         1
-    //     } else if self.is_union {
-    //         2
-    //     } else {
-    //         0
-    //     }
-    // }
-
     fn get_type(ty: BasicTypeEnum, cur_off: u32, target_data: &TargetData) -> AnalysisFieldType {
         match ty {
             BasicTypeEnum::ArrayType(_) => AnalysisFieldType::ArrayType,
@@ -326,7 +275,6 @@ impl AnalysisField {
     pub fn get_type_id(&self) -> u32 {
         self.ty.get_type_id()
     }
-
 
     pub fn get_struct_mut(&mut self) -> Option<&mut AnalysisStruct> {
         match &mut self.ty {
@@ -552,9 +500,3 @@ impl AnalysisResultContent {
         }
     }
 }
-
-// impl Display for AnalysisResultType {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-
-//     }
-// }

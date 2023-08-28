@@ -1,4 +1,8 @@
-use std::{collections::{HashMap, HashSet}, time::Instant};
+use std::{
+    collections::{HashMap, HashSet},
+    process::Command,
+    time::Instant,
+};
 
 // use analysis::{Analysis, AnalysisFunction, AnalysisStruct};
 use ansi_term::Color;
@@ -12,31 +16,50 @@ use inkwell::context::Context;
 // mod analysis;
 mod collect;
 mod target;
+mod utils;
 
 #[macro_use]
 extern crate log;
 
 pub const HOME: &str = env!("HOME");
+pub const CARGO: &str = "cargo";
 pub const CLANG: &str = "clang";
 pub const RUSTC: &str = "rustc";
 
-
-#[derive(Parser)]
-pub struct Args {
-    #[clap(short, long)]
-    rustfile: String,
-    #[clap(short, long)]
-    cppfile: String,
-    #[clap(long, default_value = "false")]
-    no_pad_info: bool,
-    // #[clap(long)]
-    cpp_include: Vec<String>,
-}
+// #[derive(Parser)]
+// pub struct Args {
+//     #[clap(short, long)]
+//     rustfile: String,
+//     #[clap(short, long)]
+//     cppfile: String,
+//     #[clap(long, default_value = "false")]
+//     no_pad_info: bool,
+//     // #[clap(long)]
+//     cpp_include: Vec<String>,
+// }
 
 // Currently we are still testing ir collection
 fn main() {
     pretty_env_logger::init();
-    collect::collect_ir();
+
+    let start = Instant::now();
+
+    // Collect IR Phases
+    utils::info_prompt("Collect IR", "start collecting ir");
+    if let Err(e) = collect::collect_ir() {
+        utils::error_prompt(
+            "Collect IR Error",
+            &format!("collect ir failed, due to: {}", e),
+        );
+        utils::error_prompt("ABIChecker Exit", &format!("time spent: {:?}", start.elapsed()));
+
+        return;
+    }
+
+    // Collect Src Phases
+
+    // Analysis Phases
+
 }
 
 // fn main() {
@@ -46,7 +69,7 @@ fn main() {
 
 //     let c_cx = Context::create();
 //     let r_cx = Context::create();
-    
+
 //     let start_collect = start.elapsed();
 //     let rinfo = collect::collect_info_from_rust_file(
 //         &args.rustfile,
@@ -57,7 +80,7 @@ fn main() {
 //     let cinfo = collect::collect_info_from_cpp_file(
 //         &args.cppfile,
 //         &c_cx,
-//         &args,  
+//         &args,
 //     );
 //     let end_collect = start.elapsed();
 
@@ -191,7 +214,7 @@ fn main() {
 //             );
 //         }
 //     }
-    
+
 //     len as u32
 // }
 

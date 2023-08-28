@@ -1,25 +1,45 @@
 use cargo_metadata::{MetadataCommand, Package};
 use infer;
 use log::info;
-use std::env;
-use std::ffi::OsString;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::process::Command;
 use walkdir::WalkDir;
 
+use crate::CARGO;
+
 use super::helper;
 
 pub fn collect_ir() -> Result<(), String> {
+    clean_target()?;
     compile_with_bc()?;
-    generate_llvm_bc();
+    generate_llvm_bc()?;
 
     Ok(())
 }
 
 fn cargo() -> Command {
-    Command::new(std::env::var_os("CARGO").unwrap_or_else(|| OsString::from("cargo")))
+    Command::new(CARGO)
+}
+
+/// Clean target cache first.
+fn clean_target() -> Result<(), String> {
+    let mut cmd = cargo();
+    cmd.arg("clean");
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to execute cargo: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "cargo failed with exit code {:?}",
+            output.status.code()
+        ));
+    }
+
+    Ok(())
 }
 
 // Get the top level crate that we need to analyze
@@ -122,21 +142,22 @@ fn compile_with_bc() -> Result<(), String> {
         info!("Command line: {:?}", cmd);
 
         // Execute cmd
-        let exit_status = cmd
-            .spawn()
-            .expect("could not run cargo")
-            .wait()
-            .expect("failed to wait for cargo?");
+        let output = cmd
+            .output()
+            .map_err(|e| format!("Failed to execute cargo: {}", e))?;
 
-        if !exit_status.success() {
-            std::process::exit(exit_status.code().unwrap_or(-1))
+        if !output.status.success() {
+            return Err(format!(
+                "cargo failed with exit code {:?}",
+                output.status.code()
+            ));
         }
     }
 
     Ok(())
 }
 
-fn generate_llvm_bc() {
+fn generate_llvm_bc() -> Result<(), String> {
     let mut llvm_bitcode_paths = Vec::new();
 
     // Path to the root path of the project
@@ -144,38 +165,29 @@ fn generate_llvm_bc() {
 
     // Get `*.ll` files in `target/debug/deps` and convert them to `*.bc`
     let deps_path = root_path.join("target/debug/deps");
-    for entry in WalkDir::new(deps_path.clone())
-        .follow_links(true)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        let f_name = entry.file_name().to_str().unwrap();
-        if f_name.ends_with(".ll") {
-            // Convert LLVM IR (*.ll) into LLVM bitcode (*.bc)
-            let mut llvm_as_cmd = Command::new("llvm-as");
-            let f_name_owned = f_name.to_string();
-            // Replace the suffix ".ll" with ".bc"
-            // TODO the code is messy, and should be simplified
-            let mut f_name_bc = f_name_owned
-                .chars()
-                .take(f_name_owned.len() - 3)
-                .collect::<String>();
-            f_name_bc.push_str(".bc");
-            llvm_as_cmd.arg(deps_path.join(f_name));
-            llvm_as_cmd.args(["-o", deps_path.join(f_name_bc.clone()).to_str().unwrap()]);
+    for entry in WalkDir::new(deps_path.clone()).follow_links(true) {
+        let entry = entry.expect("Failed to get entry");
+        let file_name = entry.file_name().to_str().expect("Failed to get file name");
 
-            // info!("llvm-as command: {:?}", llvm_as_cmd);
+        if file_name.ends_with(".ll") {
+            let bc_file_name = file_name.replace(".ll", ".bc");
+            let bc_file_path = deps_path.join(&bc_file_name);
 
-            match llvm_as_cmd.status() {
-                Ok(exit) => {
-                    if !exit.success() {
-                        std::process::exit(exit.code().unwrap_or(42));
-                    }
-                }
-                Err(ref e) => panic!("error during llvm-as run: {:?}", e),
+            let output = Command::new("llvm-as")
+                .arg(entry.path())
+                .arg("-o")
+                .arg(&bc_file_path)
+                .output()
+                .map_err(|e| format!("Failed to execute llvm-as: {}", e))?;
+
+            if !output.status.success() {
+                return Err(format!(
+                    "llvm-as failed with exit code {:?}",
+                    output.status.code()
+                ));
             }
 
-            llvm_bitcode_paths.push(deps_path.join(f_name_bc))
+            llvm_bitcode_paths.push(bc_file_path)
         }
     }
 
@@ -184,15 +196,12 @@ fn generate_llvm_bc() {
     // Note that some build scripts also generate object files, so we use `infer` crate
     // to determine whether it is really a LLVM bitcode
     let build_path = root_path.join("target/debug/build");
-    for entry in WalkDir::new(build_path.clone())
-        .follow_links(true)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(build_path.clone()).follow_links(true) {
+        let entry = entry.expect("Failed to get entry");
         // Make sure the path is a file instead of a directory
         if entry.path().is_file() {
             // Make sure the file type is known
-            if let Some(kind) = infer::get_from_path(entry.path()).expect("file read successfully")
+            if let Some(kind) = infer::get_from_path(entry.path()).expect("Failed to get file type")
             {
                 // Make sure the file type is LLVM bitcode
                 if kind.mime_type() == "application/x-llvm" {
@@ -202,8 +211,6 @@ fn generate_llvm_bc() {
         }
     }
 
-    // info!("LLVM bitcode paths: {:?}", llvm_bitcode_paths);
-
     // Write LLVM bitcode paths to a file
     let file_path = Path::new("target/bitcode_paths");
     let mut file = File::create(file_path).expect("Failed to create file bitcode_paths");
@@ -211,4 +218,6 @@ fn generate_llvm_bc() {
         file.write_all(format!("{}\n", bitcode_path.to_string_lossy()).as_bytes())
             .unwrap();
     }
+
+    Ok(())
 }
