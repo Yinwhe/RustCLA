@@ -8,6 +8,10 @@ sudo apt install -y llvm-15 clang-15 lld-15 libclang-15-dev libpolly-15-dev
 rustup override set nightly-2022-10-01
 ```
 
+**Notice:**
+- Because we're utilizing LLVM-15, it's important to note that your Rustc and Clang versions need to align accordingly. In other words, the LLVM edition within your Rustc and Clang must be 15 or lower.
+- Your LLVM tools, Rustc, Clang, and so on, should be named using their original names, without version suffixes. This is because when installing them with tools like apt, they typically include version suffixes, which can lead to path issues.
+
 ## Build
 ```sh
 cargo build
@@ -18,6 +22,12 @@ cargo build
 checkout to directory `tests/simpletest` and execute
 ```sh
 cargo run --manifest-path ../../Cargo.toml
+```
+
+If you want to use it for your own project, Pplease add binary file `abi_checker` to your environment path.
+```sh
+# in the root of projects, run
+$ abi_checker
 ```
 
 ## File Architecture
