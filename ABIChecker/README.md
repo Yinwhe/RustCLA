@@ -5,7 +5,7 @@
 
 ```sh
 sudo apt install -y llvm-15 clang-15 lld-15 libclang-15-dev libpolly-15-dev
-rustup override set nightly-2022-10-01
+rustup override set nightly-2022-10-01 # This rustc uses LLVM-15
 ```
 
 **Notice:**
@@ -45,6 +45,8 @@ $ abi_checker
 ```
 
 ## Use docker
+
+Refer to https://docs.docker.com/desktop/install/ubuntu/ to install docker.
 
 ```Shell
 # Build Docker
