@@ -1,6 +1,7 @@
 // mod collect_cxx;
 // mod collect_rust;
 mod collect_ir;
+mod ir_types;
 mod helper;
 
 // pub use self::collect_cxx::collect_info_from_cpp_file;

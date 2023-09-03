@@ -1,20 +1,63 @@
 use cargo_metadata::{MetadataCommand, Package};
 use infer;
+use inkwell::context::Context;
+use inkwell::module::Module;
 use log::info;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
-use std::process::Command;
 use walkdir::WalkDir;
 
-use crate::CARGO;
+use std::fs::File;
+use std::io::{prelude::*, BufReader};
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use super::helper;
+use super::ir_types::IRInfo;
+use crate::{CARGO, utils};
+
 
 pub fn collect_ir() -> Result<(), String> {
+    utils::info_prompt("Collect IR", "cleanning old target...");
     clean_target()?;
-    compile_with_bc()?;
-    generate_llvm_bc()?;
+    
+    utils::info_prompt("Collect IR", "compiling with bitcode, this may take a while...");
+    let targets = compile_with_bc()?;
+
+    utils::info_prompt("Collect IR", "collecting LLVM bitcode...");
+    let bitcode_path = generate_llvm_bc()?;
+
+    let file = File::open(bitcode_path).map_err(|e| format!("{}", e))?;
+    let lines = BufReader::new(file).lines();
+
+    let cx = Context::create();
+    let mut c_modules = Vec::new();
+    let mut r_modules = Vec::new();
+    
+    // read each bitcode file and collect the IR
+    for line in lines {
+        let line = line.map_err(|e| format!("{}", e))?;
+        let path = Path::new(&line);
+        let module = Module::parse_bitcode_from_path(path, &cx).map_err(|e| format!("{}", e))?;
+        
+        // Judge whether it is a C module or a Rust module
+        let file_name = path.file_name().unwrap().to_str().unwrap();
+        if file_name.ends_with(".bc") {
+            if targets.iter().any(|t| file_name.starts_with(t)) {
+                r_modules.push(module)
+            }
+            // or it's just dependencies crates
+        } else if file_name.ends_with(".o") {
+            c_modules.push(module);
+        } else {
+            panic!("Unsupported file type: {}", file_name);
+        }
+
+    }
+
+    let ir_info = IRInfo {
+        cx,
+        c_modules,
+        r_modules,
+    };
 
     Ok(())
 }
@@ -34,8 +77,9 @@ fn clean_target() -> Result<(), String> {
 
     if !output.status.success() {
         return Err(format!(
-            "cargo failed with exit code {:?}",
-            output.status.code()
+            "cargo failed with exit code {:?}, details: {:?}",
+            output.status.code(),
+            output.stderr
         ));
     }
 
@@ -94,8 +138,9 @@ fn current_crate() -> Result<Package, String> {
         .ok_or("Could not get root package.".to_string())
 }
 
-fn compile_with_bc() -> Result<(), String> {
+fn compile_with_bc() -> Result<Vec<String>, String> {
     let to_be_build = current_crate()?;
+    let mut names = Vec::new();
 
     for target in to_be_build.targets.into_iter() {
         info!("target: {:?}", target);
@@ -148,16 +193,19 @@ fn compile_with_bc() -> Result<(), String> {
 
         if !output.status.success() {
             return Err(format!(
-                "cargo failed with exit code {:?}",
-                output.status.code()
+                "cargo failed with exit code {:?}, details: {:?}",
+                output.status.code(),
+                output.stderr
             ));
         }
+
+        names.push(target.name);
     }
 
-    Ok(())
+    Ok(names)
 }
 
-fn generate_llvm_bc() -> Result<(), String> {
+fn generate_llvm_bc() -> Result<PathBuf, String> {
     let mut llvm_bitcode_paths = Vec::new();
 
     // Path to the root path of the project
@@ -212,12 +260,12 @@ fn generate_llvm_bc() -> Result<(), String> {
     }
 
     // Write LLVM bitcode paths to a file
-    let file_path = Path::new("target/bitcode_paths");
-    let mut file = File::create(file_path).expect("Failed to create file bitcode_paths");
+    let file_path = root_path.join("target/bitcode_paths");
+    let mut file = File::create(&file_path).expect("Failed to create file bitcode_paths");
     for bitcode_path in llvm_bitcode_paths {
         file.write_all(format!("{}\n", bitcode_path.to_string_lossy()).as_bytes())
             .unwrap();
     }
 
-    Ok(())
+    Ok(file_path)
 }

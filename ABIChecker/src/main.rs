@@ -5,15 +5,14 @@ use std::{
 };
 
 // use analysis::{Analysis, AnalysisFunction, AnalysisStruct};
-use ansi_term::Color;
 use clap::Parser;
-use inkwell::context::Context;
+// use inkwell::context::Context;
 
 // use crate::{
 //     analysis::{function_analysis, info_struct_analysis, AnalysisResultType},
 // };
 
-// mod analysis;
+mod analysis;
 mod collect;
 mod target;
 mod utils;
@@ -21,7 +20,6 @@ mod utils;
 #[macro_use]
 extern crate log;
 
-pub const HOME: &str = env!("HOME");
 pub const CARGO: &str = "cargo";
 pub const CLANG: &str = "clang";
 pub const RUSTC: &str = "rustc";
