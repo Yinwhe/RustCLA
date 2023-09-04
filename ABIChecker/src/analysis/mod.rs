@@ -2,6 +2,7 @@
 
 // mod analysis;
 mod analysis_types;
+mod analysis_ir;
 
-// pub use analysis::*;
 pub use analysis_types::*;
+pub use analysis_ir::*;

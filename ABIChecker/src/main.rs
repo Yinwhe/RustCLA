@@ -1,16 +1,6 @@
-use std::{
-    collections::{HashMap, HashSet},
-    process::Command,
-    time::Instant,
-};
+use std::time::Instant;
 
-// use analysis::{Analysis, AnalysisFunction, AnalysisStruct};
 use clap::Parser;
-// use inkwell::context::Context;
-
-// use crate::{
-//     analysis::{function_analysis, info_struct_analysis, AnalysisResultType},
-// };
 
 mod analysis;
 mod collect;
@@ -42,22 +32,27 @@ fn main() {
 
     let start = Instant::now();
 
-    // Collect IR Phases
-    utils::info_prompt("Collect IR", "start collecting ir");
-    if let Err(e) = collect::collect_ir() {
-        utils::error_prompt(
-            "Collect IR Error",
-            &format!("collect ir failed, due to: {}", e),
-        );
-        utils::error_prompt("ABIChecker Exit", &format!("time spent: {:?}", start.elapsed()));
+    // Collect IR
+    utils::info_prompt("Collect", "start collecting ir");
+    let (bitcode_path, targets) = match collect::collect_ir() {
+        Ok((bitcode_path, targets)) => (bitcode_path, targets),
+        Err(e) => {
+            utils::error_prompt(
+                "Collect IR Error",
+                &format!("collect ir failed, due to: {}", e),
+            );
+            utils::error_prompt(
+                "ABIChecker Exit",
+                &format!("time spent: {:?}", start.elapsed()),
+            );
 
-        return;
-    }
+            return;
+        }
+    };
 
-    // Collect Src Phases
-
-    // Analysis Phases
-
+    // Resolve and analysis IR
+    utils::info_prompt("Resolve", "start resolving ir");
+    analysis::analysis_ir(bitcode_path, targets);
 }
 
 // fn main() {

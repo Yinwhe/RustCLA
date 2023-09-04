@@ -1,65 +1,33 @@
 use cargo_metadata::{MetadataCommand, Package};
 use infer;
-use inkwell::context::Context;
-use inkwell::module::Module;
-use log::info;
 use walkdir::WalkDir;
 
 use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::helper;
-use super::ir_types::IRInfo;
-use crate::{CARGO, utils};
+use crate::{utils, CARGO};
 
+/// Top function.
+pub fn collect_ir<'a>() -> Result<(PathBuf, Vec<String>), String> {
+    // utils::info_prompt("Collect IR", "cleanning old target...");
+    // clean_target()?;
 
-pub fn collect_ir() -> Result<(), String> {
-    utils::info_prompt("Collect IR", "cleanning old target...");
-    clean_target()?;
-    
-    utils::info_prompt("Collect IR", "compiling with bitcode, this may take a while...");
+    utils::info_prompt(
+        "Collect IR",
+        "compiling with bitcode, this may take a while...",
+    );
     let targets = compile_with_bc()?;
 
     utils::info_prompt("Collect IR", "collecting LLVM bitcode...");
     let bitcode_path = generate_llvm_bc()?;
 
-    let file = File::open(bitcode_path).map_err(|e| format!("{}", e))?;
-    let lines = BufReader::new(file).lines();
-
-    let cx = Context::create();
-    let mut c_modules = Vec::new();
-    let mut r_modules = Vec::new();
-    
-    // read each bitcode file and collect the IR
-    for line in lines {
-        let line = line.map_err(|e| format!("{}", e))?;
-        let path = Path::new(&line);
-        let module = Module::parse_bitcode_from_path(path, &cx).map_err(|e| format!("{}", e))?;
-        
-        // Judge whether it is a C module or a Rust module
-        let file_name = path.file_name().unwrap().to_str().unwrap();
-        if file_name.ends_with(".bc") {
-            if targets.iter().any(|t| file_name.starts_with(t)) {
-                r_modules.push(module)
-            }
-            // or it's just dependencies crates
-        } else if file_name.ends_with(".o") {
-            c_modules.push(module);
-        } else {
-            panic!("Unsupported file type: {}", file_name);
-        }
-
-    }
-
-    let ir_info = IRInfo {
-        cx,
-        c_modules,
-        r_modules,
-    };
-
-    Ok(())
+    debug!("bitcode_path: {:?}", bitcode_path);
+    debug!("targets: {:?}", targets);
+    // return the path to the bitcode file and the targets.
+    Ok((bitcode_path, targets))
 }
 
 fn cargo() -> Command {
@@ -86,68 +54,13 @@ fn clean_target() -> Result<(), String> {
     Ok(())
 }
 
-// Get the top level crate that we need to analyze
-// The returned "package" contains one or many crates (targets)
-fn current_crate() -> Result<Package, String> {
-    // Path to the `Cargo.toml` file
-    let manifest_path = helper::get_arg_flag_value("--manifest-path")
-        .map(|m| Path::new(&m).canonicalize().unwrap());
-
-    let mut cmd = MetadataCommand::new();
-    if let Some(ref manifest_path) = manifest_path {
-        cmd.manifest_path(manifest_path);
-    }
-
-    let metadata = if let Ok(metadata) = cmd.exec() {
-        metadata
-    } else {
-        return Err("Could not obtain Cargo metadata; likely an ill-formed manifest".to_string());
-    };
-
-    // let current_dir = std::env::current_dir();
-
-    // let package_index = metadata
-    //     .packages
-    //     .iter()
-    //     .position(|package| {
-    //         let package_manifest_path = Path::new(&package.manifest_path);
-    //         if let Some(ref manifest_path) = manifest_path {
-    //             package_manifest_path == manifest_path
-    //         } else {
-    //             let current_dir = current_dir
-    //                 .as_ref()
-    //                 .expect("could not read current directory");
-    //             let package_manifest_directory = package_manifest_path
-    //                 .parent()
-    //                 .expect("could not find parent directory of package manifest");
-    //             package_manifest_directory == current_dir
-    //         }
-    //     }).unwrap();
-    //     // .unwrap_or_else(|| {
-    //     //     show_error(
-    //     //         "This seems to be a workspace, which is not supported by cargo-miri".to_string(),
-    //     //     )
-    //     // });
-    // let package = metadata.packages.remove(package_index);
-
-    // println!("Debug: {:?}", metadata.root_package());
-
-    metadata
-        .root_package()
-        .cloned()
-        .ok_or("Could not get root package.".to_string())
-}
-
+/// Compile the whole crates and generate LLVM bitcode.
 fn compile_with_bc() -> Result<Vec<String>, String> {
     let to_be_build = current_crate()?;
     let mut names = Vec::new();
 
     for target in to_be_build.targets.into_iter() {
-        info!("target: {:?}", target);
-
         let mut args = std::env::args().skip(2);
-
-        info!("args: {:?}", args);
 
         let kind = target
             .kind
@@ -184,8 +97,6 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
         cmd.env("CFLAGS", "-flto=thin");
         cmd.env("LDFLAGS", "-Wl,-O2 -Wl,--as-needed");
 
-        info!("Command line: {:?}", cmd);
-
         // Execute cmd
         let output = cmd
             .output()
@@ -205,6 +116,7 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
     Ok(names)
 }
 
+/// Find all the LLVM bitcodes and gather their pathes in a file.
 fn generate_llvm_bc() -> Result<PathBuf, String> {
     let mut llvm_bitcode_paths = Vec::new();
 
@@ -268,4 +180,56 @@ fn generate_llvm_bc() -> Result<PathBuf, String> {
     }
 
     Ok(file_path)
+}
+
+/// Get the top level crate that we need to analyze.
+/// The returned "package" contains one or many crates (targets).
+fn current_crate() -> Result<Package, String> {
+    // Path to the `Cargo.toml` file
+    let manifest_path = helper::get_arg_flag_value("--manifest-path")
+        .map(|m| Path::new(&m).canonicalize().unwrap());
+
+    let mut cmd = MetadataCommand::new();
+    if let Some(ref manifest_path) = manifest_path {
+        cmd.manifest_path(manifest_path);
+    }
+
+    let metadata = if let Ok(metadata) = cmd.exec() {
+        metadata
+    } else {
+        return Err("Could not obtain Cargo metadata; likely an ill-formed manifest".to_string());
+    };
+
+    // let current_dir = std::env::current_dir();
+
+    // let package_index = metadata
+    //     .packages
+    //     .iter()
+    //     .position(|package| {
+    //         let package_manifest_path = Path::new(&package.manifest_path);
+    //         if let Some(ref manifest_path) = manifest_path {
+    //             package_manifest_path == manifest_path
+    //         } else {
+    //             let current_dir = current_dir
+    //                 .as_ref()
+    //                 .expect("could not read current directory");
+    //             let package_manifest_directory = package_manifest_path
+    //                 .parent()
+    //                 .expect("could not find parent directory of package manifest");
+    //             package_manifest_directory == current_dir
+    //         }
+    //     }).unwrap();
+    //     // .unwrap_or_else(|| {
+    //     //     show_error(
+    //     //         "This seems to be a workspace, which is not supported by cargo-miri".to_string(),
+    //     //     )
+    //     // });
+    // let package = metadata.packages.remove(package_index);
+
+    // println!("Debug: {:?}", metadata.root_package());
+
+    metadata
+        .root_package()
+        .cloned()
+        .ok_or("Could not get root package.".to_string())
 }
