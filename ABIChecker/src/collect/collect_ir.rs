@@ -4,11 +4,12 @@ use walkdir::WalkDir;
 
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
-use super::helper;
 use crate::{utils, CARGO};
+
+use super::helper;
 
 /// Top function.
 pub fn collect_ir<'a>() -> Result<(PathBuf, Vec<String>), String> {
@@ -22,7 +23,7 @@ pub fn collect_ir<'a>() -> Result<(PathBuf, Vec<String>), String> {
     let targets = compile_with_bc()?;
 
     utils::info_prompt("Collect IR", "collecting LLVM bitcode...");
-    let bitcode_path = generate_llvm_bc()?;
+    let bitcode_path = generate_llvm_bc(&targets)?;
 
     debug!("bitcode_path: {:?}", bitcode_path);
     debug!("targets: {:?}", targets);
@@ -106,7 +107,7 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
             return Err(format!(
                 "cargo failed with exit code {:?}, details: {:?}",
                 output.status.code(),
-                output.stderr
+                String::from_utf8(output.stderr)
             ));
         }
 
@@ -117,7 +118,7 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
 }
 
 /// Find all the LLVM bitcodes and gather their pathes in a file.
-fn generate_llvm_bc() -> Result<PathBuf, String> {
+fn generate_llvm_bc(targets: &Vec<String>) -> Result<PathBuf, String> {
     let mut llvm_bitcode_paths = Vec::new();
 
     // Path to the root path of the project
@@ -130,6 +131,12 @@ fn generate_llvm_bc() -> Result<PathBuf, String> {
         let file_name = entry.file_name().to_str().expect("Failed to get file name");
 
         if file_name.ends_with(".ll") {
+            // only check what we need
+            let name_only = helper::strip_hash(file_name);
+            if !targets.contains(&name_only) {
+                continue;
+            }
+
             let bc_file_name = file_name.replace(".ll", ".bc");
             let bc_file_path = deps_path.join(&bc_file_name);
 
@@ -186,13 +193,13 @@ fn generate_llvm_bc() -> Result<PathBuf, String> {
 /// The returned "package" contains one or many crates (targets).
 fn current_crate() -> Result<Package, String> {
     // Path to the `Cargo.toml` file
-    let manifest_path = helper::get_arg_flag_value("--manifest-path")
-        .map(|m| Path::new(&m).canonicalize().unwrap());
+    // let manifest_path = helper::get_arg_flag_value("--manifest-path")
+    //     .map(|m| Path::new(&m).canonicalize().unwrap());
 
-    let mut cmd = MetadataCommand::new();
-    if let Some(ref manifest_path) = manifest_path {
-        cmd.manifest_path(manifest_path);
-    }
+    let cmd = MetadataCommand::new();
+    // if let Some(ref manifest_path) = manifest_path {
+    //     cmd.manifest_path(manifest_path);
+    // }
 
     let metadata = if let Ok(metadata) = cmd.exec() {
         metadata

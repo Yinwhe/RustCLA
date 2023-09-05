@@ -11,8 +11,7 @@ pub fn analysis_ir(path: PathBuf, targets: Vec<String>) -> Result<(), String>{
     let cx = Context::create();
     let mut ir_info = resolve_from_bc(path, targets, &cx)?;
 
-    // ir_info.test();
-    ir_info.get_ffi()?;
+    let ffi_funcs = ir_info.get_ffi()?;
 
     unimplemented!()
 }
