@@ -95,7 +95,7 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
             "-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld --emit=llvm-ir",
         );
         cmd.env("CC", "clang");
-        cmd.env("CFLAGS", "-flto=thin");
+        cmd.env("CFLAGS", "-flto=thin -g -emit-llvm");
         cmd.env("LDFLAGS", "-Wl,-O2 -Wl,--as-needed");
 
         // Execute cmd

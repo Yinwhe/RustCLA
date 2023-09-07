@@ -44,10 +44,10 @@ pub enum AType {
 }
 
 impl AStruct {
-    pub fn from_llvm_raw(st: StructType, target: TargetData) -> Self {
+    pub fn from_llvm_raw(st: &StructType, target: &TargetData) -> Self {
         // Only LLVM info currently, we call it raw structure
         let is_raw = true;
-        let alignment = target.get_abi_alignment(&st);
+        let alignment = target.get_abi_alignment(st);
         // let size = target.get_abi_size(&st);
 
         let mut fields = Vec::new();
@@ -60,7 +60,7 @@ impl AStruct {
             let end = start + target.get_abi_size(&ty);
 
             // field type
-            let fty = Self::get_type(ty, &target);
+            let fty = AType::from(ty);
 
             fields.push(
                 AField {
@@ -81,10 +81,12 @@ impl AStruct {
             alignment,
         }
     }
+}
 
-    /// Translate LLVM type to our AType
-    fn get_type(ty: BasicTypeEnum, target_data: &TargetData) -> AType {
-        match ty {
+/// Translate LLVM type to our AType
+impl From<BasicTypeEnum<'_>> for AType {
+    fn from(value: BasicTypeEnum) -> Self {
+        match value {
             BasicTypeEnum::ArrayType(_) => AType::ArrayType,
             BasicTypeEnum::FloatType(_) => AType::FloatType,
             BasicTypeEnum::IntType(_) => AType::IntType,
@@ -92,5 +94,5 @@ impl AStruct {
             BasicTypeEnum::StructType(_) => AType::StructType,
             BasicTypeEnum::VectorType(_) => AType::VectorType,
         }
-    } 
+    }
 }

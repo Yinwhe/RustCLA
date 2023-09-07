@@ -51,8 +51,19 @@ fn main() {
     };
 
     // Resolve and analysis IR
-    utils::info_prompt("Resolve", "start resolving ir");
-    analysis::analysis_ir(bitcode_path, targets);
+    utils::info_prompt("Analysis", "start analyzing ir");
+    if let Err(e) = analysis::analysis_ir(bitcode_path, targets) {
+        utils::error_prompt(
+            "Resolve IR Error",
+            &format!("resolve ir failed, due to: {}", e),
+        );
+        utils::error_prompt(
+            "ABIChecker Exit",
+            &format!("time spent: {:?}", start.elapsed()),
+        );
+
+        return;
+    }
 }
 
 // fn main() {
