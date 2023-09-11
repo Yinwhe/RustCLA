@@ -1,19 +1,8 @@
-use std::{
-    collections::{HashMap, HashSet},
-    process::Command,
-    time::Instant,
-};
+use std::time::Instant;
 
-// use analysis::{Analysis, AnalysisFunction, AnalysisStruct};
-use ansi_term::Color;
 use clap::Parser;
-use inkwell::context::Context;
 
-// use crate::{
-//     analysis::{function_analysis, info_struct_analysis, AnalysisResultType},
-// };
-
-// mod analysis;
+mod analysis;
 mod collect;
 mod target;
 mod utils;
@@ -21,7 +10,6 @@ mod utils;
 #[macro_use]
 extern crate log;
 
-pub const HOME: &str = env!("HOME");
 pub const CARGO: &str = "cargo";
 pub const CLANG: &str = "clang";
 pub const RUSTC: &str = "rustc";
@@ -44,22 +32,38 @@ fn main() {
 
     let start = Instant::now();
 
-    // Collect IR Phases
-    utils::info_prompt("Collect IR", "start collecting ir");
-    if let Err(e) = collect::collect_ir() {
+    // Collect IR
+    utils::info_prompt("Collect", "start collecting ir");
+    let (bitcode_path, targets) = match collect::collect_ir() {
+        Ok((bitcode_path, targets)) => (bitcode_path, targets),
+        Err(e) => {
+            utils::error_prompt(
+                "Collect IR Error",
+                &format!("collect ir failed, due to: {}", e),
+            );
+            utils::error_prompt(
+                "ABIChecker Exit",
+                &format!("time spent: {:?}", start.elapsed()),
+            );
+
+            return;
+        }
+    };
+
+    // Resolve and analysis IR
+    utils::info_prompt("Analysis", "start analyzing ir");
+    if let Err(e) = analysis::analysis_ir(bitcode_path, targets) {
         utils::error_prompt(
-            "Collect IR Error",
-            &format!("collect ir failed, due to: {}", e),
+            "Resolve IR Error",
+            &format!("resolve ir failed, due to: {}", e),
         );
-        utils::error_prompt("ABIChecker Exit", &format!("time spent: {:?}", start.elapsed()));
+        utils::error_prompt(
+            "ABIChecker Exit",
+            &format!("time spent: {:?}", start.elapsed()),
+        );
 
         return;
     }
-
-    // Collect Src Phases
-
-    // Analysis Phases
-
 }
 
 // fn main() {

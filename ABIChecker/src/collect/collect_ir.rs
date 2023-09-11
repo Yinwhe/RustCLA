@@ -1,22 +1,34 @@
 use cargo_metadata::{MetadataCommand, Package};
 use infer;
-use log::info;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
-use std::process::Command;
 use walkdir::WalkDir;
 
-use crate::CARGO;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::PathBuf;
+use std::process::Command;
+
+use crate::{utils, CARGO};
 
 use super::helper;
 
-pub fn collect_ir() -> Result<(), String> {
-    clean_target()?;
-    compile_with_bc()?;
-    generate_llvm_bc()?;
+/// Top function.
+pub fn collect_ir<'a>() -> Result<(PathBuf, Vec<String>), String> {
+    // utils::info_prompt("Collect IR", "cleanning old target...");
+    // clean_target()?;
 
-    Ok(())
+    utils::info_prompt(
+        "Collect IR",
+        "compiling with bitcode, this may take a while...",
+    );
+    let targets = compile_with_bc()?;
+
+    utils::info_prompt("Collect IR", "collecting LLVM bitcode...");
+    let bitcode_path = generate_llvm_bc(&targets)?;
+
+    debug!("bitcode_path: {:?}", bitcode_path);
+    debug!("targets: {:?}", targets);
+    // return the path to the bitcode file and the targets.
+    Ok((bitcode_path, targets))
 }
 
 fn cargo() -> Command {
@@ -34,75 +46,22 @@ fn clean_target() -> Result<(), String> {
 
     if !output.status.success() {
         return Err(format!(
-            "cargo failed with exit code {:?}",
-            output.status.code()
+            "cargo failed with exit code {:?}, details: {:?}",
+            output.status.code(),
+            output.stderr
         ));
     }
 
     Ok(())
 }
 
-// Get the top level crate that we need to analyze
-// The returned "package" contains one or many crates (targets)
-fn current_crate() -> Result<Package, String> {
-    // Path to the `Cargo.toml` file
-    let manifest_path = helper::get_arg_flag_value("--manifest-path")
-        .map(|m| Path::new(&m).canonicalize().unwrap());
-
-    let mut cmd = MetadataCommand::new();
-    if let Some(ref manifest_path) = manifest_path {
-        cmd.manifest_path(manifest_path);
-    }
-
-    let metadata = if let Ok(metadata) = cmd.exec() {
-        metadata
-    } else {
-        return Err("Could not obtain Cargo metadata; likely an ill-formed manifest".to_string());
-    };
-
-    // let current_dir = std::env::current_dir();
-
-    // let package_index = metadata
-    //     .packages
-    //     .iter()
-    //     .position(|package| {
-    //         let package_manifest_path = Path::new(&package.manifest_path);
-    //         if let Some(ref manifest_path) = manifest_path {
-    //             package_manifest_path == manifest_path
-    //         } else {
-    //             let current_dir = current_dir
-    //                 .as_ref()
-    //                 .expect("could not read current directory");
-    //             let package_manifest_directory = package_manifest_path
-    //                 .parent()
-    //                 .expect("could not find parent directory of package manifest");
-    //             package_manifest_directory == current_dir
-    //         }
-    //     }).unwrap();
-    //     // .unwrap_or_else(|| {
-    //     //     show_error(
-    //     //         "This seems to be a workspace, which is not supported by cargo-miri".to_string(),
-    //     //     )
-    //     // });
-    // let package = metadata.packages.remove(package_index);
-
-    // println!("Debug: {:?}", metadata.root_package());
-
-    metadata
-        .root_package()
-        .cloned()
-        .ok_or("Could not get root package.".to_string())
-}
-
-fn compile_with_bc() -> Result<(), String> {
+/// Compile the whole crates and generate LLVM bitcode.
+fn compile_with_bc() -> Result<Vec<String>, String> {
     let to_be_build = current_crate()?;
+    let mut names = Vec::new();
 
     for target in to_be_build.targets.into_iter() {
-        info!("target: {:?}", target);
-
         let mut args = std::env::args().skip(2);
-
-        info!("args: {:?}", args);
 
         let kind = target
             .kind
@@ -136,10 +95,8 @@ fn compile_with_bc() -> Result<(), String> {
             "-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld --emit=llvm-ir",
         );
         cmd.env("CC", "clang");
-        cmd.env("CFLAGS", "-flto=thin");
+        cmd.env("CFLAGS", "-flto=thin -g -emit-llvm");
         cmd.env("LDFLAGS", "-Wl,-O2 -Wl,--as-needed");
-
-        info!("Command line: {:?}", cmd);
 
         // Execute cmd
         let output = cmd
@@ -148,16 +105,20 @@ fn compile_with_bc() -> Result<(), String> {
 
         if !output.status.success() {
             return Err(format!(
-                "cargo failed with exit code {:?}",
-                output.status.code()
+                "cargo failed with exit code {:?}, details: {:?}",
+                output.status.code(),
+                String::from_utf8(output.stderr)
             ));
         }
+
+        names.push(target.name);
     }
 
-    Ok(())
+    Ok(names)
 }
 
-fn generate_llvm_bc() -> Result<(), String> {
+/// Find all the LLVM bitcodes and gather their pathes in a file.
+fn generate_llvm_bc(targets: &Vec<String>) -> Result<PathBuf, String> {
     let mut llvm_bitcode_paths = Vec::new();
 
     // Path to the root path of the project
@@ -170,6 +131,12 @@ fn generate_llvm_bc() -> Result<(), String> {
         let file_name = entry.file_name().to_str().expect("Failed to get file name");
 
         if file_name.ends_with(".ll") {
+            // only check what we need
+            let name_only = helper::strip_hash(file_name);
+            if !targets.contains(&name_only) {
+                continue;
+            }
+
             let bc_file_name = file_name.replace(".ll", ".bc");
             let bc_file_path = deps_path.join(&bc_file_name);
 
@@ -212,12 +179,64 @@ fn generate_llvm_bc() -> Result<(), String> {
     }
 
     // Write LLVM bitcode paths to a file
-    let file_path = Path::new("target/bitcode_paths");
-    let mut file = File::create(file_path).expect("Failed to create file bitcode_paths");
+    let file_path = root_path.join("target/bitcode_paths");
+    let mut file = File::create(&file_path).expect("Failed to create file bitcode_paths");
     for bitcode_path in llvm_bitcode_paths {
         file.write_all(format!("{}\n", bitcode_path.to_string_lossy()).as_bytes())
             .unwrap();
     }
 
-    Ok(())
+    Ok(file_path)
+}
+
+/// Get the top level crate that we need to analyze.
+/// The returned "package" contains one or many crates (targets).
+fn current_crate() -> Result<Package, String> {
+    // Path to the `Cargo.toml` file
+    // let manifest_path = helper::get_arg_flag_value("--manifest-path")
+    //     .map(|m| Path::new(&m).canonicalize().unwrap());
+
+    let cmd = MetadataCommand::new();
+    // if let Some(ref manifest_path) = manifest_path {
+    //     cmd.manifest_path(manifest_path);
+    // }
+
+    let metadata = if let Ok(metadata) = cmd.exec() {
+        metadata
+    } else {
+        return Err("Could not obtain Cargo metadata; likely an ill-formed manifest".to_string());
+    };
+
+    // let current_dir = std::env::current_dir();
+
+    // let package_index = metadata
+    //     .packages
+    //     .iter()
+    //     .position(|package| {
+    //         let package_manifest_path = Path::new(&package.manifest_path);
+    //         if let Some(ref manifest_path) = manifest_path {
+    //             package_manifest_path == manifest_path
+    //         } else {
+    //             let current_dir = current_dir
+    //                 .as_ref()
+    //                 .expect("could not read current directory");
+    //             let package_manifest_directory = package_manifest_path
+    //                 .parent()
+    //                 .expect("could not find parent directory of package manifest");
+    //             package_manifest_directory == current_dir
+    //         }
+    //     }).unwrap();
+    //     // .unwrap_or_else(|| {
+    //     //     show_error(
+    //     //         "This seems to be a workspace, which is not supported by cargo-miri".to_string(),
+    //     //     )
+    //     // });
+    // let package = metadata.packages.remove(package_index);
+
+    // println!("Debug: {:?}", metadata.root_package());
+
+    metadata
+        .root_package()
+        .cloned()
+        .ok_or("Could not get root package.".to_string())
 }
