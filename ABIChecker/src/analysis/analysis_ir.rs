@@ -80,6 +80,14 @@ fn analysis_funcs(ffi_funcs: &Vec<String>, ir_info: &IRInfo) -> Result<(), Strin
     Ok(())
 }
 
+/// Analysis function usage, that is, params, call convetions, return values, etc.
 fn _analysis_funcs(rust_func: AFunction, c_func: AFunction) {
-    unimplemented!()
+    println!("{:?}", rust_func);
+    println!("{:?}", c_func);
+
+    // check call convention
+    // if rust_func.call_convention != c_func.call_convention {
+        
+    // }
+
 }
