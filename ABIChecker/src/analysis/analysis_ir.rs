@@ -68,19 +68,26 @@ fn analysis_funcs(ffi_funcs: &Vec<String>, ir_info: &IRInfo) -> Result<(), Strin
         let rf = ir_info.r_func(f).expect("Fatal, cannot find the rust function");
         let cf = ir_info.c_func(f).expect("Fatal, cannot find the c/c++ function");
 
-
         // println!("rf: {} {} {} {}", rf.count_basic_blocks(), rf.is_null(), rf.is_undef(), rf.verify(false));
         // println!("cf: {} {} {} {}", cf.count_basic_blocks(), cf.is_null(), cf.is_undef(), cf.verify(false));
         // get analysis functions
-        let cf = AFunction::from_llvm_raw(cf);
         let rf = AFunction::from_llvm_raw(rf);
+        let cf = AFunction::from_llvm_raw(cf);
 
-        
+        _analysis_funcs(rf, cf)
     }
 
     Ok(())
 }
 
+/// Analysis function usage, that is, params, call convetions, return values, etc.
 fn _analysis_funcs(rust_func: AFunction, c_func: AFunction) {
-    unimplemented!()
+    println!("{:?}", rust_func);
+    println!("{:?}", c_func);
+
+    // check call convention
+    // if rust_func.call_convention != c_func.call_convention {
+        
+    // }
+
 }

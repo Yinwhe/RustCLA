@@ -9,11 +9,14 @@ pub struct AFunction {
     pub name: Option<String>,
     pub params: Vec<AField>,
     pub ret: Option<AField>,
+
+    pub call_convention: u32,
 }
 
 impl AFunction {
     pub fn from_llvm_raw(func: &FunctionValue) -> Self {
         let name = func.get_name().to_str().unwrap().to_owned();
+        let call_convention = func.get_call_conventions();
 
         // params info
         let mut fields = Vec::new();
@@ -45,6 +48,8 @@ impl AFunction {
             name: Some(name),
             params: fields,
             ret,
+
+            call_convention,
         }
     }
 }
