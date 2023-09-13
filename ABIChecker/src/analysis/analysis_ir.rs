@@ -6,10 +6,13 @@ use inkwell::context::Context;
 use inkwell::module::Module;
 
 use crate::analysis::function::AFunction;
+use crate::analysis::structure::AType;
 use crate::utils;
 
 use super::ir_info::IRInfo;
+use super::result::AResult;
 
+/// Top analysis function.
 pub fn analysis_ir(path: PathBuf, targets: Vec<String>) -> Result<(), String>{
     let cx = Context::create();
 
@@ -74,20 +77,65 @@ fn analysis_funcs(ffi_funcs: &Vec<String>, ir_info: &IRInfo) -> Result<(), Strin
         let rf = AFunction::from_llvm_raw(rf);
         let cf = AFunction::from_llvm_raw(cf);
 
-        _analysis_funcs(rf, cf)
+        if let Some(err) = _analysis_funcs(&rf, &cf) {
+            // TODO
+
+            return Ok(());
+        }
+
+        if let Some(err) = _analysis_funcs_params(&rf, &cf) {
+
+            return Ok(());
+        }
     }
 
     Ok(())
 }
 
 /// Analysis function usage, that is, params, call convetions, return values, etc.
-fn _analysis_funcs(rust_func: AFunction, c_func: AFunction) {
+fn _analysis_funcs(rust_func: &AFunction, c_func: &AFunction) -> Option<AResult> {
     println!("{:?}", rust_func);
     println!("{:?}", c_func);
 
     // check call convention
-    // if rust_func.call_convention != c_func.call_convention {
-        
-    // }
+    if rust_func.call_convention != c_func.call_convention {
+        return Some(AResult::func_convention_issue());
+    }
+    
+    // check params
+    if rust_func.params.len() != c_func.params.len() {
+        return Some(AResult::func_sig_issue());
+    }
 
+    let len = rust_func.params.len();
+    for i in 0..len {
+        let r_param = &rust_func.params[i];
+        let c_param = &c_func.params[i];
+
+        if !AType::shallow_check(&r_param.ty, &c_param.ty) {
+            return Some(AResult::func_sig_issue());
+        }
+    }
+
+    // check return value
+    if rust_func.ret.is_some() && c_func.ret.is_some() {
+        let r_ret = rust_func.ret.as_ref().unwrap();
+        let c_ret = c_func.ret.as_ref().unwrap();
+
+        if !AType::shallow_check(&r_ret.ty, &c_ret.ty) {
+            return Some(AResult::func_sig_issue());
+        }
+    } else if rust_func.ret.is_none() && c_func.ret.is_none() {
+        // do nothing
+    } else {
+        return Some(AResult::func_sig_issue());
+    }
+
+    None
+}
+
+fn _analysis_funcs_params(rust_func: &AFunction, c_func: &AFunction) -> Option<AResult> {
+    let len = rust_func.params.len();
+
+    None
 }

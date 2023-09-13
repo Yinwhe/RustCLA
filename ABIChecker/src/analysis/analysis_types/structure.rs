@@ -96,3 +96,17 @@ impl From<BasicTypeEnum<'_>> for AType {
         }
     }
 }
+
+impl AType {
+    pub fn shallow_check(a: &AType, b: &AType) -> bool {
+        match (a, b) {
+            (AType::ArrayType, AType::ArrayType) => true,
+            (AType::FloatType, AType::FloatType) => true,
+            (AType::IntType, AType::IntType) => true,
+            (AType::PointerType, AType::PointerType) => true,
+            (AType::StructType, AType::StructType) => true,
+            (AType::VectorType, AType::VectorType) => true,
+            _ => false,
+        }
+    }
+}
