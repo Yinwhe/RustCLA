@@ -14,7 +14,9 @@ fn main() {
         .write_to_file("src/bindings.rs")
         .expect("Couldn't write bindings!");
 
+
     cc::Build::new()
+        // .cpp(true)
         .file("src/c_function.cpp")
         .compile("c_function");
 }

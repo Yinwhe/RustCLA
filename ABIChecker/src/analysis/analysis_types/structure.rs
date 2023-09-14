@@ -3,7 +3,6 @@ use inkwell::{
     types::{BasicTypeEnum, StructType},
 };
 
-
 /// Analysis structure, store llvm struct info.
 /// `raw` means this structure is only from LLVM info, no source info integrated yet.
 #[derive(Debug)]
@@ -30,17 +29,17 @@ pub struct AField {
 #[derive(Debug)]
 pub enum AType {
     /// A contiguous homogeneous container type.
-    ArrayType,
+    ArrayType(Box<AType>, u32),
     /// A floating point type.
-    FloatType,
+    FloatType(String),
     /// An integer type.
-    IntType,
+    IntType(String),
     /// A pointer type.
-    PointerType,
+    PointerType(Box<AType>),
     /// A contiguous heterogeneous container type.
-    StructType,
+    StructType(Box<AStruct>),
     /// A contiguous homogeneous "SIMD" container type.
-    VectorType,
+    VectorType(Box<AType>),
 }
 
 impl AStruct {
@@ -60,16 +59,14 @@ impl AStruct {
             let end = start + target.get_abi_size(&ty);
 
             // field type
-            let fty = AType::from(ty);
+            let fty = AType::from_btype(ty, target);
 
-            fields.push(
-                AField {
-                    name: None,
-                    is_padding: None,
-                    ty: fty,
-                    range: (start as u32, end as u32),
-                }
-            );
+            fields.push(AField {
+                name: None,
+                is_padding: None,
+                ty: fty,
+                range: (start as u32, end as u32),
+            });
         }
 
         Self {
@@ -83,29 +80,63 @@ impl AStruct {
     }
 }
 
-/// Translate LLVM type to our AType
-impl From<BasicTypeEnum<'_>> for AType {
-    fn from(value: BasicTypeEnum) -> Self {
+impl AType {
+    /// Translate LLVM type to our AType
+    pub fn from_btype(value: BasicTypeEnum, target: &TargetData) -> Self {
         match value {
-            BasicTypeEnum::ArrayType(_) => AType::ArrayType,
-            BasicTypeEnum::FloatType(_) => AType::FloatType,
-            BasicTypeEnum::IntType(_) => AType::IntType,
-            BasicTypeEnum::PointerType(_) => AType::PointerType,
-            BasicTypeEnum::StructType(_) => AType::StructType,
-            BasicTypeEnum::VectorType(_) => AType::VectorType,
+            BasicTypeEnum::ArrayType(ty) => AType::ArrayType(
+                Box::new(AType::from_btype(ty.get_element_type(), target)),
+                ty.len(),
+            ),
+            BasicTypeEnum::FloatType(f) => AType::FloatType(f.to_string()),
+            BasicTypeEnum::IntType(i) => AType::IntType(i.to_string()),
+            BasicTypeEnum::PointerType(ptr) => {
+                // not sure if this is correct
+                let ty = ptr.array_type(1).get_element_type();
+                println!("DEBUG: {:?}", ptr);
+                AType::PointerType(Box::new(AType::from_btype(ty, target)))
+            }
+            BasicTypeEnum::StructType(st) => {
+                AType::StructType(Box::new(AStruct::from_llvm_raw(&st, target)))
+            }
+            BasicTypeEnum::VectorType(vec) => {
+                AType::VectorType(Box::new(AType::from_btype(vec.get_element_type(), target)))
+            }
         }
     }
-}
 
-impl AType {
     pub fn shallow_check(a: &AType, b: &AType) -> bool {
         match (a, b) {
-            (AType::ArrayType, AType::ArrayType) => true,
-            (AType::FloatType, AType::FloatType) => true,
-            (AType::IntType, AType::IntType) => true,
-            (AType::PointerType, AType::PointerType) => true,
-            (AType::StructType, AType::StructType) => true,
-            (AType::VectorType, AType::VectorType) => true,
+            (AType::ArrayType(_, _), AType::ArrayType(_, _)) => true,
+            (AType::FloatType(_), AType::FloatType(_)) => true,
+            (AType::IntType(_), AType::IntType(_)) => true,
+            (AType::PointerType(_), AType::PointerType(_)) => true,
+            (AType::StructType(_), AType::StructType(_)) => true,
+            (AType::VectorType(_), AType::VectorType(_)) => true,
+            _ => false,
+        }
+    }
+
+    pub fn deep_check(a: &AType, b: &AType) -> bool {
+        match (a, b) {
+            (AType::ArrayType(a, alen), AType::ArrayType(b, blen)) => {
+                if alen != blen {
+                    return false;
+                } else {
+                    return AType::deep_check(a, b);
+                }
+            }
+            (AType::FloatType(astr), AType::FloatType(bstr)) => astr == bstr,
+            (AType::IntType(astr), AType::IntType(bstr)) => astr == bstr,
+            (AType::PointerType(a), AType::PointerType(b)) => {
+                unimplemented!()
+            }
+            (AType::StructType(a), AType::StructType(b)) => {
+                unimplemented!()
+            }
+            (AType::VectorType(a), AType::VectorType(b)) => {
+                unimplemented!()
+            }
             _ => false,
         }
     }

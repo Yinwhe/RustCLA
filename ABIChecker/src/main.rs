@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use clap::Parser;
+use target::host_target;
 
 mod analysis;
 mod collect;
@@ -51,8 +52,10 @@ fn main() {
     };
 
     // Resolve and analysis IR
+    let target_machin = host_target();
+
     utils::info_prompt("Analysis", "start analyzing ir");
-    if let Err(e) = analysis::analysis_ir(bitcode_path, targets) {
+    if let Err(e) = analysis::analysis_ir(bitcode_path, targets, target_machin) {
         utils::error_prompt(
             "Resolve IR Error",
             &format!("resolve ir failed, due to: {}", e),
