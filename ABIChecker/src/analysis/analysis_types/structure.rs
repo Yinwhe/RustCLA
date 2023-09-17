@@ -1,11 +1,11 @@
 use inkwell::{
     targets::TargetData,
-    types::{BasicTypeEnum, StructType},
+    types::{BasicTypeEnum, StructType}, values::BasicValueEnum,
 };
 
 /// Analysis structure, store llvm struct info.
 /// `raw` means this structure is only from LLVM info, no source info integrated yet.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AStruct {
     pub is_raw: bool,
 
@@ -17,7 +17,7 @@ pub struct AStruct {
     pub alignment: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AField {
     pub name: Option<String>,
     pub is_padding: Option<bool>,
@@ -26,7 +26,7 @@ pub struct AField {
     pub range: (u32, u32),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AType {
     /// A contiguous homogeneous container type.
     ArrayType(Box<AType>, u32),
@@ -78,6 +78,43 @@ impl AStruct {
             alignment,
         }
     }
+
+    pub fn get_field(&self, index: usize) -> Option<AField> {
+        self.fields.get(index).cloned()
+    }
+
+    pub fn get_range(&self) -> (u32, u32) {
+        let start = self.fields.first().unwrap().range.0;
+        let end = self.fields.last().unwrap().range.1;
+
+        (start, end)
+    }
+}
+
+impl AField {
+    pub fn get_size(&self) -> u32 {
+        self.range.1 - self.range.0
+    }
+
+    pub fn temp_st(fields: Vec<AField>) -> Self {
+        let st = AStruct {
+            is_raw: true,
+            name: None,
+            is_union: None,
+            is_enum: None,
+            fields,
+            alignment: 0,
+        };
+
+        let range = st.get_range();
+
+        AField {
+            name: None,
+            is_padding: None,
+            ty: AType::StructType(Box::new(st)),
+            range: range,
+        }
+    }
 }
 
 impl AType {
@@ -91,9 +128,10 @@ impl AType {
             BasicTypeEnum::FloatType(f) => AType::FloatType(f.to_string()),
             BasicTypeEnum::IntType(i) => AType::IntType(i.to_string()),
             BasicTypeEnum::PointerType(ptr) => {
-                // not sure if this is correct
+                // TODO: How to fix it ?
+                println!("from_btype DEBUG: {:?}", ptr);
                 let ty = ptr.array_type(1).get_element_type();
-                println!("DEBUG: {:?}", ptr);
+                println!("from_btype DEBUG: {:?}", ty);
                 AType::PointerType(Box::new(AType::from_btype(ty, target)))
             }
             BasicTypeEnum::StructType(st) => {
@@ -102,42 +140,6 @@ impl AType {
             BasicTypeEnum::VectorType(vec) => {
                 AType::VectorType(Box::new(AType::from_btype(vec.get_element_type(), target)))
             }
-        }
-    }
-
-    pub fn shallow_check(a: &AType, b: &AType) -> bool {
-        match (a, b) {
-            (AType::ArrayType(_, _), AType::ArrayType(_, _)) => true,
-            (AType::FloatType(_), AType::FloatType(_)) => true,
-            (AType::IntType(_), AType::IntType(_)) => true,
-            (AType::PointerType(_), AType::PointerType(_)) => true,
-            (AType::StructType(_), AType::StructType(_)) => true,
-            (AType::VectorType(_), AType::VectorType(_)) => true,
-            _ => false,
-        }
-    }
-
-    pub fn deep_check(a: &AType, b: &AType) -> bool {
-        match (a, b) {
-            (AType::ArrayType(a, alen), AType::ArrayType(b, blen)) => {
-                if alen != blen {
-                    return false;
-                } else {
-                    return AType::deep_check(a, b);
-                }
-            }
-            (AType::FloatType(astr), AType::FloatType(bstr)) => astr == bstr,
-            (AType::IntType(astr), AType::IntType(bstr)) => astr == bstr,
-            (AType::PointerType(a), AType::PointerType(b)) => {
-                unimplemented!()
-            }
-            (AType::StructType(a), AType::StructType(b)) => {
-                unimplemented!()
-            }
-            (AType::VectorType(a), AType::VectorType(b)) => {
-                unimplemented!()
-            }
-            _ => false,
         }
     }
 }

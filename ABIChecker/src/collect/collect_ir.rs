@@ -14,7 +14,7 @@ use super::helper;
 /// Top function.
 pub fn collect_ir<'a>() -> Result<(PathBuf, Vec<String>), String> {
     utils::info_prompt("Collect IR", "cleanning old target...");
-    clean_target()?;
+    // clean_target()?;
 
     utils::info_prompt(
         "Collect IR",

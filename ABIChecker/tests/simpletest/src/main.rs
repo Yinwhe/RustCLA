@@ -7,7 +7,12 @@ fn main() {
     unsafe {
         hello();
         override_();
-        override_1(1);
+        let t = T {
+            a: 1,
+            b: 2,
+            c: [3; 10],
+        };
+        override_1(t);
     }
 }
 
