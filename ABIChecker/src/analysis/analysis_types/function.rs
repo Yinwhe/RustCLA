@@ -1,45 +1,33 @@
-use inkwell::values::FunctionValue;
+use inkwell::{targets::TargetData, values::FunctionValue};
 
 use crate::analysis::structure::AType;
-
-use super::structure::AField;
 
 #[derive(Debug)]
 pub struct AFunction {
     pub name: Option<String>,
-    pub params: Vec<AField>,
-    pub ret: Option<AField>,
+    pub params: Vec<AType>,
+    pub ret: Option<AType>,
 
     pub call_convention: u32,
 }
 
 impl AFunction {
-    pub fn from_llvm_raw(func: &FunctionValue) -> Self {
+    pub fn from_llvm_raw(func: &FunctionValue, target: &TargetData) -> Self {
         let name = func.get_name().to_str().unwrap().to_owned();
         let call_convention = func.get_call_conventions();
 
         // params info
         let mut fields = Vec::new();
         for param in func.get_type().get_param_types() {
-            let ty = AType::from(param);
+            let ty = AType::from_btype(param, target);
 
-            fields.push(AField {
-                name: None,
-                is_padding: None,
-                ty,
-                range: (0, 0),
-            })
+            fields.push(ty);
         }
 
         // return info
         let ret = if let Some(ret) = func.get_type().get_return_type() {
-            let ty = AType::from(ret);
-            Some(AField {
-                name: None,
-                is_padding: None,
-                ty,
-                range: (0, 0),
-            })
+            let ty = AType::from_btype(ret, target);
+            Some(ty)
         } else {
             None
         };

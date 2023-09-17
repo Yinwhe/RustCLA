@@ -13,8 +13,8 @@ use super::helper;
 
 /// Top function.
 pub fn collect_ir<'a>() -> Result<(PathBuf, Vec<String>), String> {
-    // utils::info_prompt("Collect IR", "cleanning old target...");
-    // clean_target()?;
+    utils::info_prompt("Collect IR", "cleanning old target...");
+    clean_target()?;
 
     utils::info_prompt(
         "Collect IR",
@@ -95,19 +95,20 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
             "-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld --emit=llvm-ir",
         );
         cmd.env("CC", "clang");
-        cmd.env("CFLAGS", "-flto=thin -g -emit-llvm");
+        cmd.env("CFLAGS", "-flto=thin -emit-llvm");
         cmd.env("LDFLAGS", "-Wl,-O2 -Wl,--as-needed");
 
         // Execute cmd
         let output = cmd
-            .output()
-            .map_err(|e| format!("Failed to execute cargo: {}", e))?;
+            .spawn()
+            .map_err(|e| format!("Failed to spawn: {}", e))?
+            .wait_with_output()
+            .map_err(|e| format!("Failed to wait cargo: {}", e))?;
 
         if !output.status.success() {
             return Err(format!(
-                "cargo failed with exit code {:?}, details: {:?}",
+                "cargo failed with exit code {:?}",
                 output.status.code(),
-                String::from_utf8(output.stderr)
             ));
         }
 

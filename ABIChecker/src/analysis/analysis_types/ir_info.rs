@@ -1,3 +1,4 @@
+use inkwell::targets::TargetData;
 /// IRInfo acts as a IR Information database.
 use inkwell::{module::Module, values::FunctionValue};
 use std::collections::{HashMap, HashSet};
@@ -7,6 +8,7 @@ use std::io::Write;
 pub struct IRInfo<'a> {
     r_modules: Vec<Module<'a>>,
     c_modules: Vec<Module<'a>>,
+    target: TargetData,
     rdef_functions: HashMap<String, FunctionValue<'a>>,
     rdec_functions: HashMap<String, FunctionValue<'a>>,
     cdef_functions: HashMap<String, FunctionValue<'a>>,
@@ -15,10 +17,11 @@ pub struct IRInfo<'a> {
 }
 
 impl IRInfo<'_> {
-    pub fn new<'a>(r: Vec<Module<'a>>, c: Vec<Module<'a>>) -> IRInfo<'a> {
+    pub fn new<'a>(r: Vec<Module<'a>>, c: Vec<Module<'a>>, target: TargetData) -> IRInfo<'a> {
         IRInfo {
             r_modules: r,
             c_modules: c,
+            target,
             rdef_functions: HashMap::new(),
             rdec_functions: HashMap::new(),
             cdef_functions: HashMap::new(),
@@ -47,6 +50,10 @@ impl IRInfo<'_> {
         self.rdef_functions
             .get(name)
             .or(self.rdec_functions.get(name))
+    }
+
+    pub fn get_target_data(&self) -> &TargetData {
+        &self.target
     }
 
     /// Locate FFI Functions.
