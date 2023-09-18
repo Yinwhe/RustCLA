@@ -4,12 +4,12 @@
 ## Requirements
 
 ```sh
-sudo apt install -y llvm-15 clang-15 lld-15 libclang-15-dev libpolly-15-dev
-rustup override set nightly-2022-10-01 # This rustc uses LLVM-15
+sudo apt install -y llvm-14 clang-14 lld-14 libclang-14-dev libpolly-14-dev
+rustup override set nightly-2022-08-01 # This rustc uses LLVM-14
 ```
 
 **Notice:**
-- Because we're utilizing LLVM-15, it's important to note that your Rustc and Clang versions need to align accordingly. In other words, the LLVM edition within your Rustc and Clang must be 15 or lower.
+- Because we're utilizing LLVM-14, it's important to note that your Rustc and Clang versions need to align accordingly. In other words, the LLVM edition within your Rustc and Clang must be 14 or lower.
 - Your LLVM tools, Rustc, Clang, and so on, should be named using their original names, without version suffixes. This is because when installing them with tools like apt, they typically include version suffixes, which can lead to path issues.
 
 ## Build

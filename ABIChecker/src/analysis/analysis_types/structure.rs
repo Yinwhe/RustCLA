@@ -1,6 +1,6 @@
 use inkwell::{
     targets::TargetData,
-    types::{BasicTypeEnum, StructType}, values::BasicValueEnum,
+    types::{AnyType, AnyTypeEnum, StructType},
 };
 
 /// Analysis structure, store llvm struct info.
@@ -59,7 +59,7 @@ impl AStruct {
             let end = start + target.get_abi_size(&ty);
 
             // field type
-            let fty = AType::from_btype(ty, target);
+            let fty = AType::from_anytype(ty.as_any_type_enum(), target);
 
             fields.push(AField {
                 name: None,
@@ -118,28 +118,31 @@ impl AField {
 }
 
 impl AType {
-    /// Translate LLVM type to our AType
-    pub fn from_btype(value: BasicTypeEnum, target: &TargetData) -> Self {
+    /// Translate LLVM type to our AType.
+    /// Will this function ends?
+    pub fn from_anytype(value: AnyTypeEnum, target: &TargetData) -> Self {
         match value {
-            BasicTypeEnum::ArrayType(ty) => AType::ArrayType(
-                Box::new(AType::from_btype(ty.get_element_type(), target)),
+            AnyTypeEnum::ArrayType(ty) => AType::ArrayType(
+                Box::new(AType::from_anytype(
+                    ty.get_element_type().as_any_type_enum(),
+                    target,
+                )),
                 ty.len(),
             ),
-            BasicTypeEnum::FloatType(f) => AType::FloatType(f.to_string()),
-            BasicTypeEnum::IntType(i) => AType::IntType(i.to_string()),
-            BasicTypeEnum::PointerType(ptr) => {
-                // TODO: How to fix it ?
-                println!("from_btype DEBUG: {:?}", ptr);
-                let ty = ptr.array_type(1).get_element_type();
-                println!("from_btype DEBUG: {:?}", ty);
-                AType::PointerType(Box::new(AType::from_btype(ty, target)))
+            AnyTypeEnum::FloatType(f) => AType::FloatType(f.to_string()),
+            AnyTypeEnum::IntType(i) => AType::IntType(i.to_string()),
+            AnyTypeEnum::PointerType(ptr) => {
+                let ty = ptr.get_element_type();
+                AType::PointerType(Box::new(AType::from_anytype(ty.as_any_type_enum(), target)))
             }
-            BasicTypeEnum::StructType(st) => {
+            AnyTypeEnum::StructType(st) => {
                 AType::StructType(Box::new(AStruct::from_llvm_raw(&st, target)))
             }
-            BasicTypeEnum::VectorType(vec) => {
-                AType::VectorType(Box::new(AType::from_btype(vec.get_element_type(), target)))
-            }
+            AnyTypeEnum::VectorType(vec) => AType::VectorType(Box::new(AType::from_anytype(
+                vec.get_element_type().as_any_type_enum(),
+                target,
+            ))),
+            _ => unimplemented!(),
         }
     }
 }

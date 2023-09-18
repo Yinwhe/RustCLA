@@ -12,8 +12,8 @@ mod utils;
 extern crate log;
 
 pub const CARGO: &str = "cargo";
-pub const CLANG: &str = "clang";
 pub const RUSTC: &str = "rustc";
+pub const CLANG: &str = "clang";
 
 // #[derive(Parser)]
 // pub struct Args {

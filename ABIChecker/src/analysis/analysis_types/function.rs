@@ -1,4 +1,4 @@
-use inkwell::{targets::TargetData, values::FunctionValue};
+use inkwell::{targets::TargetData, values::FunctionValue, types::AnyType};
 
 use crate::analysis::structure::AType;
 
@@ -19,14 +19,14 @@ impl AFunction {
         // params info
         let mut fields = Vec::new();
         for param in func.get_type().get_param_types() {
-            let ty = AType::from_btype(param, target);
+            let ty = AType::from_anytype(param.as_any_type_enum(), target);
 
             fields.push(ty);
         }
 
         // return info
         let ret = if let Some(ret) = func.get_type().get_return_type() {
-            let ty = AType::from_btype(ret, target);
+            let ty = AType::from_anytype(ret.as_any_type_enum(), target);
             Some(ty)
         } else {
             None
