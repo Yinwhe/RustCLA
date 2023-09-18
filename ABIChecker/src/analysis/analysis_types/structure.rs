@@ -18,6 +18,12 @@ pub struct AStruct {
 }
 
 #[derive(Debug, Clone)]
+pub enum ATypeLazyStruct {
+    Name(String),
+    Struct(AStruct),
+}
+
+#[derive(Debug, Clone)]
 pub struct AField {
     pub name: Option<String>,
     pub is_padding: Option<bool>,
@@ -37,7 +43,7 @@ pub enum AType {
     /// A pointer type.
     PointerType(Box<AType>),
     /// A contiguous heterogeneous container type.
-    StructType(Box<AStruct>),
+    StructType(ATypeLazyStruct),
     /// A contiguous homogeneous "SIMD" container type.
     VectorType(Box<AType>),
 }
@@ -91,6 +97,15 @@ impl AStruct {
     }
 }
 
+impl ATypeLazyStruct {
+    pub fn get_name(&self) -> String {
+        match self {
+            ATypeLazyStruct::Name(name) => name.clone(),
+            ATypeLazyStruct::Struct(st) => st.name.clone().unwrap(),
+        }
+    }
+}
+
 impl AField {
     pub fn get_size(&self) -> u32 {
         self.range.1 - self.range.0
@@ -111,8 +126,19 @@ impl AField {
         AField {
             name: None,
             is_padding: None,
-            ty: AType::StructType(Box::new(st)),
+            ty: AType::StructType(ATypeLazyStruct::Struct(st)),
             range: range,
+        }
+    }
+
+    pub fn cmp_number(&self) -> u32 {
+        match &self.ty {
+            AType::FloatType(_) => 1,
+            AType::IntType(_) => 1,
+            AType::PointerType(_) => 1,
+            AType::VectorType(_) => 1,
+            AType::ArrayType(_, _) => 2,
+            AType::StructType(_) => 3,
         }
     }
 }
@@ -136,7 +162,13 @@ impl AType {
                 AType::PointerType(Box::new(AType::from_anytype(ty.as_any_type_enum(), target)))
             }
             AnyTypeEnum::StructType(st) => {
-                AType::StructType(Box::new(AStruct::from_llvm_raw(&st, target)))
+                let name = st
+                    .get_name()
+                    .expect("Fatal Error, struct has no name")
+                    .to_str()
+                    .expect("Fatal Error, struct name is not valid utf8")
+                    .to_string();
+                AType::StructType(ATypeLazyStruct::Name(name))
             }
             AnyTypeEnum::VectorType(vec) => AType::VectorType(Box::new(AType::from_anytype(
                 vec.get_element_type().as_any_type_enum(),

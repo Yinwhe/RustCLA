@@ -14,6 +14,7 @@ pub struct IRInfo<'a> {
     cdef_functions: HashMap<String, FunctionValue<'a>>,
     cdec_functions: HashMap<String, FunctionValue<'a>>,
     ffi_functions: Vec<String>,
+    ffi_structs: HashSet<(String, String)>,
 }
 
 impl IRInfo<'_> {
@@ -27,17 +28,16 @@ impl IRInfo<'_> {
             cdef_functions: HashMap::new(),
             cdec_functions: HashMap::new(),
             ffi_functions: Vec::new(),
+            ffi_structs: HashSet::new(),
         }
     }
 
-    pub fn get_ffi(&mut self) -> Result<(), String> {
-        self.get_ffi_funcs()?;
-
-        Ok(())
+    pub fn ffi_functions(&self) -> Vec<String> {
+        self.ffi_functions.clone()
     }
 
-    pub fn ffi_functions(&self) -> &Vec<String> {
-        &self.ffi_functions
+    pub fn ffi_structs(&self) -> Vec<(String, String)> {
+        self.ffi_structs.iter().cloned().collect()
     }
 
     pub fn c_func(&self, name: &str) -> Option<&FunctionValue> {
@@ -56,8 +56,12 @@ impl IRInfo<'_> {
         self.target_machine.get_target_data()
     }
 
+    pub fn add_ffi_structs(&mut self, ffis: Vec<(String, String)>) {
+        self.ffi_structs.extend(ffis);
+    }
+
     /// Locate FFI Functions.
-    fn get_ffi_funcs(&mut self) -> Result<(), String> {
+    pub fn get_ffi_funcs(&mut self) -> Result<(), String> {
         self.prepare_functions()?;
 
         let r_use_c = self
