@@ -16,7 +16,7 @@ pub enum AResult {
     SigIssue(SigMismatch),
 
     // structs issues
-    StructIssue(u32, StructMismatch),
+    StructIssue(u32, u32, StructMismatch),
 }
 
 pub enum SigMismatch {
@@ -30,35 +30,6 @@ pub enum StructMismatch {
     TypeMismatch,
 }
 
-impl AResult {
-    pub fn func_convention_issue(r: u32, c: u32) -> Self {
-        AResult::ConventionIssue(r, c)
-    }
-
-    pub fn func_sig_issue(sig: SigMismatch) -> Self {
-        AResult::SigIssue(sig)
-    }
-
-    pub fn func_param_type_issue(id: u32, param: StructMismatch) -> Self {
-        AResult::StructIssue(id, param)
-    }
-}
-
-impl Display for AResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ConventionIssue(r, c) => {
-                write!(f, "call convention mismatch, rust: {}, c: {}", r, c)
-            }
-            Self::SigIssue(sig) => match sig {
-                SigMismatch::ParamLen => write!(f, "param length mismatch"),
-                SigMismatch::ParamType(i) => write!(f, "param type mismatch at {}", i),
-                SigMismatch::RetType => write!(f, "return type mismatch"),
-            },
-            Self::StructIssue(_, _) => write!(f, "type issue"),
-        }
-    }
-}
 
 impl AResults {
     pub fn new() -> Self {
@@ -77,10 +48,10 @@ impl AResults {
             .push((AResult::func_sig_issue(sig), AResultLevel::Error));
     }
 
-    pub fn add_struct_issue(&mut self, id: u32, param: StructMismatch) {
+    pub fn add_struct_issue(&mut self, r_off: u32, c_off: u32, mis: StructMismatch, level: AResultLevel) {
         self.results.push((
-            AResult::func_param_type_issue(id, param),
-            AResultLevel::Error,
+            AResult::struct_issue(r_off, c_off, mis),
+            level,
         ));
     }
 
@@ -91,4 +62,38 @@ impl AResults {
     pub fn is_empty(&self) -> bool {
         self.results.is_empty()
     }
+
+    pub fn extend(&mut self, other: AResults) {
+        self.results.extend(other.results);
+    }
 }
+
+impl AResult {
+    pub fn func_convention_issue(r: u32, c: u32) -> Self {
+        AResult::ConventionIssue(r, c)
+    }
+
+    pub fn func_sig_issue(mis: SigMismatch) -> Self {
+        AResult::SigIssue(mis)
+    }
+
+    pub fn struct_issue(r_off: u32, c_off: u32, mis: StructMismatch) -> Self {
+        AResult::StructIssue(r_off, c_off, mis)
+    }
+}
+
+// impl Display for AResult {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Self::ConventionIssue(r, c) => {
+//                 write!(f, "call convention mismatch, rust side: {}, c/c++ side: {}", r, c)
+//             }
+//             Self::SigIssue(sig) => match sig {
+//                 SigMismatch::ParamLen => write!(f, "param length mismatch"),
+//                 SigMismatch::ParamType(i) => write!(f, "param type mismatch at {}", i),
+//                 SigMismatch::RetType => write!(f, "return type mismatch"),
+//             },
+//             Self::StructIssue(_, _, _) => write!(f, "type issue"),
+//         }
+//     }
+// }

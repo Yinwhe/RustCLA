@@ -3,13 +3,13 @@ use crate::analysis::structure::AType;
 use crate::utils;
 
 use super::ir_info::IRInfo;
-use super::result::{AResults, SigMismatch};
+use super::result::{AResult, AResults, SigMismatch};
 
 /// Analysis functions.
 pub fn analysis_funcs(ffi_funcs: Vec<String>, ir_info: &mut IRInfo) -> Result<(), String> {
     let target = &ir_info.get_target_data();
     for f in ffi_funcs {
-        utils::info_prompt("Analysis IR", &format!("checking function: {}", f));
+        utils::info_prompt("Analysis Funcs", &format!("checking function: {}", f));
 
         let rf = ir_info
             .r_func(&f)
@@ -25,8 +25,8 @@ pub fn analysis_funcs(ffi_funcs: Vec<String>, ir_info: &mut IRInfo) -> Result<()
 
         let res = _analysis_funcs(&rf, &cf);
         if !res.is_empty() {
-            for res in res.get_iters() {
-                // TODO
+            for (res, _) in res.get_iters() {
+                show_error(res, &rf, &cf);
             }
             continue;
         }
@@ -34,6 +34,8 @@ pub fn analysis_funcs(ffi_funcs: Vec<String>, ir_info: &mut IRInfo) -> Result<()
         // get ffi structs
         let ffis = fetch_ffi_structs(&rf, &cf);
         ir_info.add_ffi_structs(ffis);
+
+        utils::info_prompt("Analysis Funcs", &format!("function {} passed", f));
     }
 
     Ok(())
@@ -137,4 +139,35 @@ fn _fetch_ffi_structs(r: &AType, c: &AType) -> Option<(String, String)> {
     }
 
     None
+}
+
+fn show_error(res: &AResult, rf: &AFunction, cf: &AFunction) {
+    match res {
+        AResult::ConventionIssue(r, c) => {
+            utils::error_prompt("Issue Found", "call convention mismatch");
+            println!("rust side: {}, c/c++ side: {}", r, c);
+        }
+        AResult::SigIssue(sig) => match sig {
+            SigMismatch::ParamLen => {
+                utils::error_prompt("Issue Found", "param length mismatch");
+                println!(
+                    "rust side: {}, c/c++ side: {}",
+                    rf.params.len(),
+                    cf.params.len()
+                );
+            }
+            SigMismatch::ParamType(i) => {
+                utils::error_prompt("Issue Found", "param type mismatch");
+                println!(
+                    "rust side: {:?}, c/c++ side: {:?}",
+                    rf.params[*i as usize], cf.params[*i as usize]
+                );
+            }
+            SigMismatch::RetType => {
+                utils::error_prompt("Issue Found", "return type mismatch");
+                println!("rust side: {:?}, c/c++ side: {:?}", rf.ret, cf.ret);
+            }
+        },
+        _ => unreachable!(),
+    }
 }

@@ -7,14 +7,12 @@ use inkwell::{
 /// `raw` means this structure is only from LLVM info, no source info integrated yet.
 #[derive(Debug, Clone)]
 pub struct AStruct {
-    pub is_raw: bool,
-
-    pub name: Option<String>,
-    pub is_union: Option<bool>,
-    pub is_enum: Option<bool>,
-
-    pub fields: Vec<AField>,
-    pub alignment: u32,
+    // is_raw: bool,
+    name: Option<String>,
+    // is_union: Option<bool>,
+    // is_enum: Option<bool>,
+    fields: Vec<AField>,
+    // alignment: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -25,11 +23,10 @@ pub enum ATypeLazyStruct {
 
 #[derive(Debug, Clone)]
 pub struct AField {
-    pub name: Option<String>,
-    pub is_padding: Option<bool>,
-
-    pub ty: AType,
-    pub range: (u32, u32),
+    name: Option<String>,
+    // is_padding: Option<bool>,
+    ty: AType,
+    range: (u32, u32),
 }
 
 #[derive(Debug, Clone)]
@@ -51,8 +48,8 @@ pub enum AType {
 impl AStruct {
     pub fn from_llvm_raw(st: &StructType, target: &TargetData) -> Self {
         // Only LLVM info currently, we call it raw structure
-        let is_raw = true;
-        let alignment = target.get_abi_alignment(st);
+        // let is_raw = true;
+        // let alignment = target.get_abi_alignment(st);
         // let size = target.get_abi_size(&st);
 
         let mut fields = Vec::new();
@@ -69,31 +66,61 @@ impl AStruct {
 
             fields.push(AField {
                 name: None,
-                is_padding: None,
+                // is_padding: None,
                 ty: fty,
                 range: (start as u32, end as u32),
             });
         }
 
         Self {
-            is_raw,
+            // is_raw,
             name: None,
-            is_union: None,
-            is_enum: None,
+            // is_union: None,
+            // is_enum: None,
             fields,
-            alignment,
+            // alignment,
         }
     }
 
+    #[inline]
     pub fn get_field(&self, index: usize) -> Option<AField> {
         self.fields.get(index).cloned()
     }
 
+    #[inline]
+    pub fn get_fields(&self) -> &Vec<AField> {
+        &self.fields
+    }
+
+    #[inline]
     pub fn get_range(&self) -> (u32, u32) {
         let start = self.fields.first().unwrap().range.0;
         let end = self.fields.last().unwrap().range.1;
 
         (start, end)
+    }
+
+    pub fn get_inner_one(&self) -> Option<&AField> {
+        if self.fields.len() != 1 {
+            return None;
+        }
+
+        let inner = self.fields.first().expect("Should not happen");
+        if let Some(st) = inner.to_struct() {
+            st.get_inner_one()
+        } else {
+            Some(inner)
+        }
+    }
+
+    pub fn get_fields_from_offset(&self, offset: u32) -> &AField {
+        for f in &self.fields {
+            if f.get_start() >= offset {
+                return f;
+            }
+        }
+
+        unreachable!()
     }
 }
 
@@ -107,38 +134,63 @@ impl ATypeLazyStruct {
 }
 
 impl AField {
-    pub fn get_size(&self) -> u32 {
-        self.range.1 - self.range.0
+    pub fn temp_field(ty: AType, range: (u32, u32)) -> Self {
+        AField {
+            name: None,
+            // is_padding: None,
+            ty,
+            range,
+        }
     }
 
     pub fn temp_st(fields: Vec<AField>) -> Self {
         let st = AStruct {
-            is_raw: true,
+            // is_raw: true,
             name: None,
-            is_union: None,
-            is_enum: None,
+            // is_union: None,
+            // is_enum: None,
             fields,
-            alignment: 0,
+            // alignment: 0,
         };
 
         let range = st.get_range();
 
         AField {
             name: None,
-            is_padding: None,
+            // is_padding: None,
             ty: AType::StructType(ATypeLazyStruct::Struct(st)),
             range: range,
         }
     }
 
+    #[inline]
+    pub fn get_range(&self) -> (u32, u32) {
+        self.range
+    }
+
+    #[inline]
+    pub fn get_size(&self) -> u32 {
+        self.range.1 - self.range.0
+    }
+
+    #[inline]
+    pub fn get_type(&self) -> AType {
+        self.ty.to_owned()
+    }
+
+    #[inline]
+    pub fn get_start(&self) -> u32 {
+        self.range.0
+    }
+
     pub fn cmp_number(&self) -> u32 {
+        self.ty.cmp_number()
+    }
+
+    pub fn to_struct(&self) -> Option<&AStruct> {
         match &self.ty {
-            AType::FloatType(_) => 1,
-            AType::IntType(_) => 1,
-            AType::PointerType(_) => 1,
-            AType::VectorType(_) => 1,
-            AType::ArrayType(_, _) => 2,
-            AType::StructType(_) => 3,
+            AType::StructType(ATypeLazyStruct::Struct(st)) => Some(st),
+            _ => None,
         }
     }
 }
@@ -185,6 +237,17 @@ impl AType {
                 extend_struct,
             ))),
             _ => unimplemented!(),
+        }
+    }
+
+    pub fn cmp_number(&self) -> u32 {
+        match &self {
+            AType::FloatType(_) => 1,
+            AType::IntType(_) => 1,
+            AType::PointerType(_) => 1,
+            AType::VectorType(_) => 1,
+            AType::ArrayType(_, _) => 2,
+            AType::StructType(_) => 3,
         }
     }
 }

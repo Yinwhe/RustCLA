@@ -1,29 +1,45 @@
-use super::{ir_info::IRInfo, result::AResults, structure::AStruct};
-use crate::{
-    analysis::{result::StructMismatch, structure::AField},
-    utils,
-};
+use super::ir_info::IRInfo;
+use super::result::{AResult, AResults};
+use super::structure::{AStruct, AType};
+
+use crate::analysis::result::{AResultLevel, StructMismatch};
+use crate::analysis::structure::AField;
+use crate::utils;
 
 pub fn analysis_structs(
     ffi_structs: Vec<(String, String)>,
     ir_info: &IRInfo,
 ) -> Result<(), String> {
     let target = &ir_info.get_target_data();
-    for (rst, cst) in ffi_structs {
-        utils::info_prompt("Analysis IR", &format!("checking structs: {} {}", rst, cst));
+    for (rname, cname) in ffi_structs {
+        utils::info_prompt(
+            "Analysis Structs",
+            &format!("checking structs: {} {}", rname, cname),
+        );
 
         let rst = ir_info
-            .r_struct(&rst)
+            .r_struct(&rname)
             .expect("Fatal, cannot find the rust struct");
 
         let cst = ir_info
-            .c_struct(&cst)
+            .c_struct(&cname)
             .expect("Fatal, cannot find the c/c++ struct");
 
         let rst = AStruct::from_llvm_raw(&rst, target);
         let cst = AStruct::from_llvm_raw(&cst, target);
 
         let res = _analysis_struct(&rst, &cst);
+        if !res.is_empty() {
+            for (res, _) in res.get_iters() {
+                show_error(res, &rst, &cst);
+            }
+            continue;
+        }
+
+        utils::info_prompt(
+            "Analysis Structs",
+            &format!("structs: {} {} passed", rname, cname),
+        );
     }
 
     Ok(())
@@ -113,7 +129,12 @@ fn _analysis_struct(rstruct: &AStruct, cstruct: &AStruct) -> AResults {
                     c_index += 1;
                 } else {
                     // mismatch occurs
-                    res.add_struct_issue(0, StructMismatch::SizeMismatch);
+                    res.add_struct_issue(
+                        processed_total_size,
+                        processed_total_size,
+                        StructMismatch::SizeMismatch,
+                        AResultLevel::Error,
+                    );
                     return res;
                     // result.add_info(AnalysisResultContent::error(
                     //     rf.range,
@@ -151,7 +172,12 @@ fn _analysis_struct(rstruct: &AStruct, cstruct: &AStruct) -> AResults {
                     r_index += 1;
                 } else {
                     // mismatch occurs
-                    res.add_struct_issue(0, StructMismatch::SizeMismatch);
+                    res.add_struct_issue(
+                        processed_total_size,
+                        processed_total_size,
+                        StructMismatch::SizeMismatch,
+                        AResultLevel::Error,
+                    );
                     return res;
                     // result.add_info(AnalysisResultContent::error(
                     //     rf.range,
@@ -190,7 +216,12 @@ fn _analysis_struct(rstruct: &AStruct, cstruct: &AStruct) -> AResults {
 
     // unmatched fields, should be errors
     if !r_remain.is_empty() || !c_remain.is_empty() {
-        res.add_struct_issue(0, StructMismatch::SizeMismatch);
+        res.add_struct_issue(
+            processed_total_size,
+            processed_total_size,
+            StructMismatch::SizeMismatch,
+            AResultLevel::Warning,
+        );
         // result.add_info(AnalysisResultContent::error(
         //     (processed_total_size, 0),
         //     (processed_total_size, 0),
@@ -202,24 +233,209 @@ fn _analysis_struct(rstruct: &AStruct, cstruct: &AStruct) -> AResults {
 
     // type checks
     for (rf, cf) in matches {
-        // 1 - normal compare
-        // 2 - array compare
-        // 3 - struct compare
-        let rty = &rf.ty;
-        let cty = &cf.ty;
-        match (rf.cmp_number(), cf.cmp_number()) {
-            (1, 1) => {}
-            (1, 2) => {}
-            (1, 3) => {}
-            (2, 1) => {}
-            (2, 2) => {}
-            (2, 3) => {}
-            (3, 1) => {}
-            (3, 2) => {}
-            (3, 3) => {}
-            _ => unreachable!(),
+        res.extend(deep_check(&rf, &cf));
+    }
+
+    return res;
+}
+
+fn deep_check(a: &AField, b: &AField) -> AResults {
+    // 1 - normal compare
+    // 2 - array compare
+    // 3 - struct compare
+    match (a.cmp_number(), b.cmp_number()) {
+        (1, 1) => normal_normal(a, b),
+        (1, 2) => normal_array(a, b),
+        (1, 3) => normal_struct(a, b),
+        (2, 1) => array_normal(a, b),
+        (2, 2) => array_array(a, b),
+        (2, 3) => array_struct(a, b),
+        (3, 1) => struct_normal(a, b),
+        (3, 2) => struct_array(a, b),
+        (3, 3) => struct_struct(a, b),
+        _ => unreachable!(),
+    }
+}
+
+fn normal_normal(a: &AField, b: &AField) -> AResults {
+    let mut res = AResults::new();
+    match (a.get_type(), b.get_type()) {
+        (AType::FloatType(r), AType::FloatType(c)) => {
+            if r != c {
+                res.add_struct_issue(
+                    a.get_start(),
+                    b.get_start(),
+                    StructMismatch::TypeMismatch,
+                    AResultLevel::Error,
+                );
+            }
+        }
+
+        (AType::IntType(r), AType::IntType(c)) => {
+            if r != c {
+                res.add_struct_issue(
+                    a.get_start(),
+                    b.get_start(),
+                    StructMismatch::TypeMismatch,
+                    AResultLevel::Error,
+                );
+            }
+        }
+        (AType::PointerType(r), AType::PointerType(c)) => {
+            let r = AField::temp_field(*r, a.get_range());
+            let c = AField::temp_field(*c, b.get_range());
+            return deep_check(&r, &c);
+        }
+        (AType::VectorType(r), AType::VectorType(c)) => {
+            let r = AField::temp_field(*r, a.get_range());
+            let c = AField::temp_field(*c, b.get_range());
+            return deep_check(&r, &c);
+        }
+        _ => {
+            res.add_struct_issue(
+                a.get_start(),
+                b.get_start(),
+                StructMismatch::TypeMismatch,
+                AResultLevel::Error,
+            );
         }
     }
 
     return res;
+}
+
+fn normal_array(a: &AField, b: &AField) -> AResults {
+    let mut res = AResults::new();
+    res.add_struct_issue(
+        a.get_start(),
+        b.get_start(),
+        StructMismatch::TypeMismatch,
+        AResultLevel::Warning,
+    );
+
+    return res;
+}
+
+fn normal_struct(a: &AField, b: &AField) -> AResults {
+    let mut res = AResults::new();
+
+    let st = b.to_struct().expect("Fatal, should be a struct");
+
+    if let Some(b) = st.get_inner_one() {
+        return deep_check(a, b);
+    } else {
+        res.add_struct_issue(
+            a.get_start(),
+            b.get_start(),
+            StructMismatch::TypeMismatch,
+            AResultLevel::Error,
+        );
+    }
+
+    return res;
+}
+
+fn array_normal(a: &AField, b: &AField) -> AResults {
+    let mut res = AResults::new();
+    res.add_struct_issue(
+        a.get_start(),
+        b.get_start(),
+        StructMismatch::TypeMismatch,
+        AResultLevel::Warning,
+    );
+
+    return res;
+}
+
+fn array_array(a: &AField, b: &AField) -> AResults {
+    match (a.get_type(), b.get_type()) {
+        (AType::ArrayType(r, _), AType::ArrayType(c, _)) => {
+            let r = AField::temp_field(*r, a.get_range());
+            let c = AField::temp_field(*c, b.get_range());
+            return deep_check(&r, &c);
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn array_struct(a: &AField, b: &AField) -> AResults {
+    let mut res = AResults::new();
+
+    let st = b.to_struct().expect("Fatal, should be a struct");
+
+    if let Some(b) = st.get_inner_one() {
+        return deep_check(a, b);
+    } else {
+        res.add_struct_issue(
+            a.get_start(),
+            b.get_start(),
+            StructMismatch::TypeMismatch,
+            AResultLevel::Warning,
+        );
+    }
+
+    return res;
+}
+
+fn struct_normal(a: &AField, b: &AField) -> AResults {
+    let mut res = AResults::new();
+
+    let st = a.to_struct().expect("Fatal, should be a struct");
+
+    if let Some(a) = st.get_inner_one() {
+        return deep_check(a, b);
+    } else {
+        res.add_struct_issue(
+            a.get_start(),
+            b.get_start(),
+            StructMismatch::TypeMismatch,
+            AResultLevel::Error,
+        );
+    }
+
+    return res;
+}
+
+fn struct_array(a: &AField, b: &AField) -> AResults {
+    let mut res = AResults::new();
+
+    let st = a.to_struct().expect("Fatal, should be a struct");
+
+    if let Some(a) = st.get_inner_one() {
+        return deep_check(a, b);
+    } else {
+        res.add_struct_issue(
+            a.get_start(),
+            b.get_start(),
+            StructMismatch::TypeMismatch,
+            AResultLevel::Warning,
+        );
+    }
+
+    return res;
+}
+
+fn struct_struct(a: &AField, b: &AField) -> AResults {
+    let a = a.to_struct().expect("Fatal, should be a struct");
+    let b = b.to_struct().expect("Fatal, should be a struct");
+
+    return _analysis_struct(a, b);
+}
+
+fn show_error(res: &AResult, rst: &AStruct, cst: &AStruct) {
+    match res {
+        AResult::StructIssue(r_off, c_off, mis) => {
+            let rf = rst.get_fields_from_offset(*r_off);
+            let cf = cst.get_fields_from_offset(*c_off);
+            let details = match mis {
+                StructMismatch::SizeMismatch => "size mismatch",
+                StructMismatch::TypeMismatch => "type mismatch",
+            };
+
+            utils::error_prompt("Issue Found", details);
+            println!("rust side: {:?}", rf);
+            println!("c/c++ side: {:?}", cf);
+        }
+        _ => unreachable!(),
+    }
 }

@@ -43,7 +43,7 @@ fn main() {
                 &format!("collect ir failed, due to: {}", e),
             );
             utils::error_prompt(
-                "ABIChecker Exit",
+                "Exit",
                 &format!("time spent: {:?}", start.elapsed()),
             );
 
@@ -61,12 +61,17 @@ fn main() {
             &format!("resolve ir failed, due to: {}", e),
         );
         utils::error_prompt(
-            "ABIChecker Exit",
+            "Exit",
             &format!("time spent: {:?}", start.elapsed()),
         );
 
         return;
     }
+
+    utils::info_prompt(
+        "Exit",
+        &format!("time spent: {:?}", start.elapsed()),
+    );
 }
 
 // fn main() {
