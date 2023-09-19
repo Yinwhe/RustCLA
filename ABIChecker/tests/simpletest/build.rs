@@ -16,7 +16,7 @@ fn main() {
 
 
     cc::Build::new()
-        // .cpp(true)
+        .cpp(true)
         .file("src/c_function.cpp")
         .compile("c_function");
 }

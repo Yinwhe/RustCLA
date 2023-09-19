@@ -2,12 +2,12 @@ use cargo_metadata::{MetadataCommand, Package};
 use infer;
 use walkdir::WalkDir;
 
-use std::fs::File;
+use std::fs::{copy, File};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
 
-use crate::{utils, CARGO};
+use crate::utils;
 
 use super::helper;
 
@@ -32,7 +32,7 @@ pub fn collect_ir<'a>() -> Result<(PathBuf, Vec<String>), String> {
 }
 
 fn cargo() -> Command {
-    Command::new(CARGO)
+    Command::new("cargo")
 }
 
 /// Clean target cache first.
@@ -96,7 +96,11 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
         );
         cmd.env("CC", "clang");
         cmd.env("CFLAGS", "-flto=thin -emit-llvm");
+
+        cmd.env("CXX", "clang");
+        cmd.env("CXXFLAGS", "-flto=thin -emit-llvm");
         cmd.env("LDFLAGS", "-Wl,-O2 -Wl,--as-needed");
+        // cmd.env("LIBRARY_PATH", "/usr/lib/gcc/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib/:/lib/x86_64-linux-gnu/11/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/11/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../:/lib/:/usr/lib");
 
         // Execute cmd
         let output = cmd
@@ -139,7 +143,7 @@ fn generate_llvm_bc(targets: &Vec<String>) -> Result<PathBuf, String> {
             }
 
             let bc_file_name = file_name.replace(".ll", ".bc");
-            let bc_file_path = deps_path.join(&bc_file_name);
+            let bc_file_path = deps_path.join(bc_file_name);
 
             let output = Command::new("llvm-as")
                 .arg(entry.path())
@@ -183,8 +187,30 @@ fn generate_llvm_bc(targets: &Vec<String>) -> Result<PathBuf, String> {
     let file_path = root_path.join("target/bitcode_paths");
     let mut file = File::create(&file_path).expect("Failed to create file bitcode_paths");
     for bitcode_path in llvm_bitcode_paths {
-        file.write_all(format!("{}\n", bitcode_path.to_string_lossy()).as_bytes())
+        file.write_all(format!("{}\n", &bitcode_path.to_string_lossy()).as_bytes())
             .unwrap();
+
+        // Prepare llvm ir codes for debug.
+        let file_name = bitcode_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string()
+            .replace(".bc", ".ll")
+            .replace(".o", ".ll");
+
+        // let mut cmd = Command::new("llvm-dis");
+        // cmd.arg(format!("{}", &bitcode_path.to_string_lossy()))
+        //     .arg("-o")
+        //     .arg(root_path.join(file_name));
+
+        // let res = cmd.output();
+        // println!("{:?}", res);
+        let _ = Command::new("llvm-dis")
+            .arg(format!("{}", &bitcode_path.to_string_lossy()))
+            .arg("-o")
+            .arg(root_path.join(file_name))
+            .output();
     }
 
     Ok(file_path)

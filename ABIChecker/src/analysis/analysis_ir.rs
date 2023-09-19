@@ -61,7 +61,7 @@ fn resolve_from_bc<'a>(
         let line = line.map_err(|e| format!("{}", e))?;
         let path = Path::new(&line);
         let module = Module::parse_bitcode_from_path(path, cx).map_err(|e| format!("{}", e))?;
-
+        
         // Judge whether it is a C module or a Rust module
         let file_name = path.file_name().unwrap().to_str().unwrap();
         if file_name.ends_with(".bc") {

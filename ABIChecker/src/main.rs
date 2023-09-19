@@ -11,10 +11,6 @@ mod utils;
 #[macro_use]
 extern crate log;
 
-pub const CARGO: &str = "cargo";
-pub const RUSTC: &str = "rustc";
-pub const CLANG: &str = "clang";
-
 // #[derive(Parser)]
 // pub struct Args {
 //     #[clap(short, long)]
