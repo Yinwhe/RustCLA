@@ -65,7 +65,7 @@ impl AStruct {
             let end = start + target.get_abi_size(&ty);
 
             // field type
-            let fty = AType::from_anytype(ty.as_any_type_enum(), target);
+            let fty = AType::from_anytype(ty.as_any_type_enum(), target, true);
 
             fields.push(AField {
                 name: None,
@@ -146,12 +146,13 @@ impl AField {
 impl AType {
     /// Translate LLVM type to our AType.
     /// Will this function ends?
-    pub fn from_anytype(value: AnyTypeEnum, target: &TargetData) -> Self {
+    pub fn from_anytype(value: AnyTypeEnum, target: &TargetData, extend_struct: bool) -> Self {
         match value {
             AnyTypeEnum::ArrayType(ty) => AType::ArrayType(
                 Box::new(AType::from_anytype(
                     ty.get_element_type().as_any_type_enum(),
                     target,
+                    extend_struct,
                 )),
                 ty.len(),
             ),
@@ -159,20 +160,29 @@ impl AType {
             AnyTypeEnum::IntType(i) => AType::IntType(i.to_string()),
             AnyTypeEnum::PointerType(ptr) => {
                 let ty = ptr.get_element_type();
-                AType::PointerType(Box::new(AType::from_anytype(ty.as_any_type_enum(), target)))
+                AType::PointerType(Box::new(AType::from_anytype(
+                    ty.as_any_type_enum(),
+                    target,
+                    extend_struct,
+                )))
             }
             AnyTypeEnum::StructType(st) => {
-                let name = st
-                    .get_name()
-                    .expect("Fatal Error, struct has no name")
-                    .to_str()
-                    .expect("Fatal Error, struct name is not valid utf8")
-                    .to_string();
-                AType::StructType(ATypeLazyStruct::Name(name))
+                if extend_struct {
+                    AType::StructType(ATypeLazyStruct::Struct(AStruct::from_llvm_raw(&st, target)))
+                } else {
+                    let name = st
+                        .get_name()
+                        .expect("Fatal Error, struct has no name")
+                        .to_str()
+                        .expect("Fatal Error, struct name is not valid utf8")
+                        .to_string();
+                    AType::StructType(ATypeLazyStruct::Name(name))
+                }
             }
             AnyTypeEnum::VectorType(vec) => AType::VectorType(Box::new(AType::from_anytype(
                 vec.get_element_type().as_any_type_enum(),
                 target,
+                extend_struct,
             ))),
             _ => unimplemented!(),
         }

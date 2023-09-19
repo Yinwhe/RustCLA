@@ -1,4 +1,5 @@
 use inkwell::targets::{TargetData, TargetMachine};
+use inkwell::types::StructType;
 /// IRInfo acts as a IR Information database.
 use inkwell::{module::Module, values::FunctionValue};
 use std::collections::{HashMap, HashSet};
@@ -50,6 +51,26 @@ impl IRInfo<'_> {
         self.rdef_functions
             .get(name)
             .or(self.rdec_functions.get(name))
+    }
+
+    pub fn c_struct(&self, name: &str) -> Option<StructType> {
+        for m in &self.c_modules {
+            if let Some(s) = m.get_struct_type(name) {
+                return Some(s);
+            }
+        }
+
+        None
+    }
+
+    pub fn r_struct(&self, name: &str) -> Option<StructType> {
+        for m in &self.r_modules {
+            if let Some(s) = m.get_struct_type(name) {
+                return Some(s);
+            }
+        }
+
+        None
     }
 
     pub fn get_target_data(&self) -> TargetData {

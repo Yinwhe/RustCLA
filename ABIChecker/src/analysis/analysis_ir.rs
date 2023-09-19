@@ -37,7 +37,7 @@ pub fn analysis_ir(
         "Analysis IR",
         &format!("checking ffi structs: {:?}", ffi_structs),
     );
-    analysis_structs();
+    analysis_structs(ffi_structs, &ir_info)?;
 
     Ok(())
 }
