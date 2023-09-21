@@ -11,27 +11,21 @@ mod utils;
 #[macro_use]
 extern crate log;
 
-// #[derive(Parser)]
-// pub struct Args {
-//     #[clap(short, long)]
-//     rustfile: String,
-//     #[clap(short, long)]
-//     cppfile: String,
-//     #[clap(long, default_value = "false")]
-//     no_pad_info: bool,
-//     // #[clap(long)]
-//     cpp_include: Vec<String>,
-// }
+#[derive(Parser)]
+pub struct Args {
+    ir_files: bool,
+}
 
 // Currently we are still testing ir collection
 fn main() {
     pretty_env_logger::init();
+    let args = Args::parse();
 
     let start = Instant::now();
 
     // Collect IR
     utils::info_prompt("Collect", "start collecting ir");
-    let (bitcode_path, targets) = match collect::collect_ir() {
+    let (bitcode_path, targets) = match collect::collect_ir(&args) {
         Ok((bitcode_path, targets)) => (bitcode_path, targets),
         Err(e) => {
             utils::error_prompt(

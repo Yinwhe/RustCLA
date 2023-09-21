@@ -1,3 +1,4 @@
-pub fn test () {
-    println!("Hello, world!");
+#[no_mangle]
+pub fn c_hello() {
+    println!("Hello from Rust!");
 }

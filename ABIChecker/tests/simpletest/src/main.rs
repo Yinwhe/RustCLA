@@ -3,7 +3,6 @@ mod utils;
 include!("bindings.rs");
 
 fn main() {
-    utils::test();
     unsafe {
         hello();
         override_();
@@ -12,11 +11,10 @@ fn main() {
             b: 2,
             c: [3; 10],
         };
-        override_1(t);
+        let tt = TT {
+            t: t,
+            s: [3; 2],
+        };
+        override_1(tt);
     }
-}
-
-#[no_mangle]
-pub extern "C" fn c_hello() {
-    println!("Hello, C!");
 }

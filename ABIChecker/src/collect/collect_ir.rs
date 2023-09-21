@@ -2,17 +2,17 @@ use cargo_metadata::{MetadataCommand, Package};
 use infer;
 use walkdir::WalkDir;
 
-use std::fs::{copy, File};
+use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
 
-use crate::utils;
+use crate::{utils, Args};
 
 use super::helper;
 
 /// Top function.
-pub fn collect_ir<'a>() -> Result<(PathBuf, Vec<String>), String> {
+pub fn collect_ir<'a>(args: &Args) -> Result<(PathBuf, Vec<String>), String> {
     utils::info_prompt("Collect IR", "cleanning old target...");
     // clean_target()?;
 
@@ -23,7 +23,7 @@ pub fn collect_ir<'a>() -> Result<(PathBuf, Vec<String>), String> {
     let targets = compile_with_bc()?;
 
     utils::info_prompt("Collect IR", "collecting LLVM bitcode...");
-    let bitcode_path = generate_llvm_bc(&targets)?;
+    let bitcode_path = generate_llvm_bc(args, &targets)?;
 
     debug!("bitcode_path: {:?}", bitcode_path);
     debug!("targets: {:?}", targets);
@@ -35,6 +35,7 @@ fn cargo() -> Command {
     Command::new("cargo")
 }
 
+#[allow(unused)]
 /// Clean target cache first.
 fn clean_target() -> Result<(), String> {
     let mut cmd = cargo();
@@ -92,15 +93,16 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
         // Set these environment variables to generate LLVM bitcode
         cmd.env(
             "RUSTFLAGS",
-            "-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld --emit=llvm-ir",
+            "-Clinker=clang -Clink-arg=-fuse-ld=lld --emit=llvm-ir",
         );
         cmd.env("CC", "clang");
-        cmd.env("CFLAGS", "-flto=thin -emit-llvm");
+        cmd.env("CFLAGS", "-emit-llvm");
 
         cmd.env("CXX", "clang");
-        cmd.env("CXXFLAGS", "-flto=thin -emit-llvm");
+        cmd.env("CXXFLAGS", "-emit-llvm");
         cmd.env("LDFLAGS", "-Wl,-O2 -Wl,--as-needed");
-        // cmd.env("LIBRARY_PATH", "/usr/lib/gcc/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib/:/lib/x86_64-linux-gnu/11/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/11/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../:/lib/:/usr/lib");
+        // library environment, any better way?
+        cmd.env("LIBRARY_PATH", "/usr/lib/gcc/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib/:/lib/x86_64-linux-gnu/11/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/11/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../:/lib/:/usr/lib");
 
         // Execute cmd
         let output = cmd
@@ -123,7 +125,7 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
 }
 
 /// Find all the LLVM bitcodes and gather their pathes in a file.
-fn generate_llvm_bc(targets: &Vec<String>) -> Result<PathBuf, String> {
+fn generate_llvm_bc(args: &Args, targets: &Vec<String>) -> Result<PathBuf, String> {
     let mut llvm_bitcode_paths = Vec::new();
 
     // Path to the root path of the project
@@ -190,27 +192,31 @@ fn generate_llvm_bc(targets: &Vec<String>) -> Result<PathBuf, String> {
         file.write_all(format!("{}\n", &bitcode_path.to_string_lossy()).as_bytes())
             .unwrap();
 
-        // Prepare llvm ir codes for debug.
-        let file_name = bitcode_path
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string()
-            .replace(".bc", ".ll")
-            .replace(".o", ".ll");
+        if args.ir_files {
+            // Prepare llvm ir codes for debug.
+            let file_name = helper::strip_hash(
+                &bitcode_path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+                    .replace(".bc", ".ll")
+                    .replace(".o", ".ll"),
+            );
 
-        // let mut cmd = Command::new("llvm-dis");
-        // cmd.arg(format!("{}", &bitcode_path.to_string_lossy()))
-        //     .arg("-o")
-        //     .arg(root_path.join(file_name));
+            // let mut cmd = Command::new("llvm-dis");
+            // cmd.arg(format!("{}", &bitcode_path.to_string_lossy()))
+            //     .arg("-o")
+            //     .arg(root_path.join(file_name));
 
-        // let res = cmd.output();
-        // println!("{:?}", res);
-        let _ = Command::new("llvm-dis")
-            .arg(format!("{}", &bitcode_path.to_string_lossy()))
-            .arg("-o")
-            .arg(root_path.join(file_name))
-            .output();
+            // let res = cmd.output();
+            // println!("{:?}", res);
+            let _ = Command::new("llvm-dis")
+                .arg(format!("{}", &bitcode_path.to_string_lossy()))
+                .arg("-o")
+                .arg(root_path.join(file_name))
+                .output();
+        }
     }
 
     Ok(file_path)

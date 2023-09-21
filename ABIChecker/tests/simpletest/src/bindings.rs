@@ -37,6 +37,37 @@ fn bindgen_test_layout_T() {
         concat!("Offset of field: ", stringify!(T), "::", stringify!(c))
     );
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct TT {
+    pub t: T,
+    pub s: [::std::os::raw::c_int; 2usize],
+}
+#[test]
+fn bindgen_test_layout_TT() {
+    const UNINIT: ::std::mem::MaybeUninit<TT> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<TT>(),
+        56usize,
+        concat!("Size of: ", stringify!(TT))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<TT>(),
+        4usize,
+        concat!("Alignment of ", stringify!(TT))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).t) as usize - ptr as usize },
+        0usize,
+        concat!("Offset of field: ", stringify!(TT), "::", stringify!(t))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).s) as usize - ptr as usize },
+        48usize,
+        concat!("Offset of field: ", stringify!(TT), "::", stringify!(s))
+    );
+}
 extern "C" {
     #[link_name = "\u{1}_Z5hellov"]
     pub fn hello();
@@ -46,6 +77,6 @@ extern "C" {
     pub fn override_();
 }
 extern "C" {
-    #[link_name = "\u{1}_Z8override1T"]
-    pub fn override_1(t: T);
+    #[link_name = "\u{1}_Z8override2TT"]
+    pub fn override_1(t: TT);
 }

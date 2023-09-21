@@ -1,10 +1,5 @@
 #include <stdio.h>
-
-struct T {
-    int a;
-    int b;
-    int c[10];
-};
+#include "c_function.hpp"
 
 extern "C" {
     void c_hello();
@@ -19,8 +14,6 @@ void override() {
     printf("Override 1!\n");
 }
 
-void override(T t) {
+void override(TT t) {
     printf("Override 2!\n");
-    printf("t.a = %d\n", t.a);
-    printf("t.b = %d\n", t.b);
 }
