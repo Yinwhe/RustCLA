@@ -199,10 +199,10 @@ fn generate_llvm_bc(args: &Args, targets: &Vec<String>) -> Result<PathBuf, Strin
                     .file_name()
                     .unwrap()
                     .to_string_lossy()
-                    .to_string()
-                    .replace(".bc", ".ll")
-                    .replace(".o", ".ll"),
-            );
+                    .to_string(),
+            )
+            .replace(".bc", ".ll")
+            .replace(".o", ".ll");
 
             // let mut cmd = Command::new("llvm-dis");
             // cmd.arg(format!("{}", &bitcode_path.to_string_lossy()))

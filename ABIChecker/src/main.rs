@@ -13,6 +13,7 @@ extern crate log;
 
 #[derive(Parser)]
 pub struct Args {
+    #[clap(long, default_value = "false")]
     ir_files: bool,
 }
 

@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use inkwell::{
     targets::TargetData,
     types::{AnyType, AnyTypeEnum, StructType},
@@ -6,47 +8,47 @@ use inkwell::{
 /// Analysis structure, store llvm struct info.
 /// `raw` means this structure is only from LLVM info, no source info integrated yet.
 #[derive(Debug, Clone)]
-pub struct AStruct {
+pub struct AStruct<'ctx> {
     // is_raw: bool,
-    name: Option<String>,
+    // name: Option<String>,
     // is_union: Option<bool>,
     // is_enum: Option<bool>,
-    fields: Vec<AField>,
+    fields: Vec<AField<'ctx>>,
     // alignment: u32,
 }
 
 #[derive(Debug, Clone)]
-pub enum ATypeLazyStruct {
-    Name(String),
-    Struct(AStruct),
+pub enum ATypeLazyStruct<'ctx> {
+    Name(String, StructType<'ctx>),
+    Struct(AStruct<'ctx>),
 }
 
 #[derive(Debug, Clone)]
-pub struct AField {
-    name: Option<String>,
+pub struct AField<'ctx> {
+    // name: Option<String>,
     // is_padding: Option<bool>,
-    ty: AType,
+    ty: AType<'ctx>,
     range: (u32, u32),
 }
 
 #[derive(Debug, Clone)]
-pub enum AType {
+pub enum AType<'ctx> {
     /// A contiguous homogeneous container type.
-    ArrayType(Box<AType>, u32),
+    ArrayType(Box<AType<'ctx>>, u32),
     /// A floating point type.
     FloatType(String),
     /// An integer type.
     IntType(String),
     /// A pointer type.
-    PointerType(Box<AType>),
+    PointerType(Box<AType<'ctx>>),
     /// A contiguous heterogeneous container type.
-    StructType(ATypeLazyStruct),
+    StructType(ATypeLazyStruct<'ctx>),
     /// A contiguous homogeneous "SIMD" container type.
-    VectorType(Box<AType>),
+    VectorType(Box<AType<'ctx>>),
 }
 
-impl AStruct {
-    pub fn from_llvm_raw(st: &StructType, target: &TargetData) -> Self {
+impl<'ctx> AStruct<'ctx> {
+    pub fn from_llvm_raw(st: &StructType<'ctx>, target: &TargetData) -> Self {
         // Only LLVM info currently, we call it raw structure
         // let is_raw = true;
         // let alignment = target.get_abi_alignment(st);
@@ -65,7 +67,7 @@ impl AStruct {
             let fty = AType::from_anytype(ty.as_any_type_enum(), target, true);
 
             fields.push(AField {
-                name: None,
+                // name: None,
                 // is_padding: None,
                 ty: fty,
                 range: (start as u32, end as u32),
@@ -74,7 +76,7 @@ impl AStruct {
 
         Self {
             // is_raw,
-            name: None,
+            // name: None,
             // is_union: None,
             // is_enum: None,
             fields,
@@ -113,40 +115,40 @@ impl AStruct {
         }
     }
 
-    pub fn get_fields_from_offset(&self, offset: u32) -> &AField {
+    pub fn get_fields_from_offset(&self, offset: u32) -> Option<&AField> {
         for f in &self.fields {
-            if f.get_start() >= offset {
-                return f;
+            if f.get_start() == offset {
+                return Some(f);
             }
         }
 
-        unreachable!()
+        None
     }
 }
 
-impl ATypeLazyStruct {
-    pub fn get_name(&self) -> String {
+impl<'ctx> ATypeLazyStruct<'ctx> {
+    pub fn get_lazy(&self) -> (&String, &StructType<'ctx>) {
         match self {
-            ATypeLazyStruct::Name(name) => name.clone(),
-            ATypeLazyStruct::Struct(st) => st.name.clone().unwrap(),
+            ATypeLazyStruct::Name(name, st) => (name, st),
+            ATypeLazyStruct::Struct(_) => panic!("Fatal Error, struct is not lazy"),
         }
     }
 }
 
-impl AField {
-    pub fn temp_field(ty: AType, range: (u32, u32)) -> Self {
+impl<'ctx> AField<'ctx> {
+    pub fn temp_field(ty: AType<'ctx>, range: (u32, u32)) -> Self {
         AField {
-            name: None,
+            // name: None,
             // is_padding: None,
             ty,
             range,
         }
     }
 
-    pub fn temp_st(fields: Vec<AField>) -> Self {
+    pub fn temp_st(fields: Vec<AField<'ctx>>) -> Self {
         let st = AStruct {
             // is_raw: true,
-            name: None,
+            // name: None,
             // is_union: None,
             // is_enum: None,
             fields,
@@ -156,7 +158,7 @@ impl AField {
         let range = st.get_range();
 
         AField {
-            name: None,
+            // name: None,
             // is_padding: None,
             ty: AType::StructType(ATypeLazyStruct::Struct(st)),
             range: range,
@@ -195,10 +197,14 @@ impl AField {
     }
 }
 
-impl AType {
+impl<'ctx> AType<'ctx> {
     /// Translate LLVM type to our AType.
     /// Will this function ends?
-    pub fn from_anytype(value: AnyTypeEnum, target: &TargetData, extend_struct: bool) -> Self {
+    pub fn from_anytype(
+        value: AnyTypeEnum<'ctx>,
+        target: &TargetData,
+        extend_struct: bool,
+    ) -> Self {
         match value {
             AnyTypeEnum::ArrayType(ty) => AType::ArrayType(
                 Box::new(AType::from_anytype(
@@ -222,13 +228,15 @@ impl AType {
                 if extend_struct {
                     AType::StructType(ATypeLazyStruct::Struct(AStruct::from_llvm_raw(&st, target)))
                 } else {
-                    let name = st
-                        .get_name()
-                        .expect("Fatal Error, struct has no name")
-                        .to_str()
-                        .expect("Fatal Error, struct name is not valid utf8")
-                        .to_string();
-                    AType::StructType(ATypeLazyStruct::Name(name))
+                    let name = if let Some(name) = st.get_name() {
+                        name.to_str()
+                            .expect("Fatal Error, struct name is not valid utf8")
+                            .to_string()
+                    } else {
+                        format!("unamed_{:?}", st)
+                    };
+
+                    AType::StructType(ATypeLazyStruct::Name(name, st))
                 }
             }
             AnyTypeEnum::VectorType(vec) => AType::VectorType(Box::new(AType::from_anytype(
@@ -249,5 +257,19 @@ impl AType {
             AType::ArrayType(_, _) => 2,
             AType::StructType(_) => 3,
         }
+    }
+}
+
+impl<'ctx> PartialEq for ATypeLazyStruct<'ctx> {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_lazy().0 == other.get_lazy().0
+    }
+}
+
+impl<'ctx> Eq for ATypeLazyStruct<'ctx> {}
+
+impl<'ctx> Hash for ATypeLazyStruct<'ctx> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.get_lazy().0.hash(state);
     }
 }

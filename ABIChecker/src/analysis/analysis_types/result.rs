@@ -10,6 +10,7 @@ pub enum AResultLevel {
     Error,
 }
 
+#[derive(Debug)]
 pub enum AResult {
     // functions issue
     ConventionIssue(u32, u32),
@@ -19,12 +20,14 @@ pub enum AResult {
     StructIssue(u32, u32, StructMismatch),
 }
 
+#[derive(Debug)]
 pub enum SigMismatch {
     ParamLen,
     ParamType(u32),
     RetType,
 }
 
+#[derive(Debug)]
 pub enum StructMismatch {
     SizeMismatch,
     TypeMismatch,

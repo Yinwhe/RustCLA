@@ -1,0 +1,696 @@
+; ModuleID = '/home/ubuntu/Workspace/RustCLA/ABIChecker/tests/i1/target/debug/deps/issue1s-97dc2f7e9ae72e98.bc'
+source_filename = "4ulg7u1r8vkv4al2"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-unknown-linux-gnu"
+
+%"core::fmt::Formatter" = type { { i64, i64 }, { i64, i64 }, { {}*, [3 x i64]* }, i32, i32, i8, [7 x i8] }
+%B = type { { i8*, i32 }, i32, [1 x i32] }
+
+@alloc5 = private unnamed_addr constant <{ [1 x i8] }> <{ [1 x i8] c"A" }>, align 1
+@alloc6 = private unnamed_addr constant <{ [3 x i8] }> <{ [3 x i8] c"ptr" }>, align 1
+@vtable.0 = private unnamed_addr constant <{ i8*, [16 x i8], i8* }> <{ i8* bitcast (void (i8***)* @"_ZN4core3ptr54drop_in_place$LT$$RF$$BP$mut$u20$core..ffi..c_void$GT$17h38e69b3e86a473ccE" to i8*), [16 x i8] c"\08\00\00\00\00\00\00\00\08\00\00\00\00\00\00\00", i8* bitcast (i1 (i8***, %"core::fmt::Formatter"*)* @"_ZN42_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$3fmt17hb1973dd50076d49fE" to i8*) }>, align 8, !dbg !0
+@alloc10 = private unnamed_addr constant <{ [6 x i8] }> <{ [6 x i8] c"_m_buf" }>, align 1
+@vtable.1 = private unnamed_addr constant <{ i8*, [16 x i8], i8* }> <{ i8* bitcast (void (i32**)* @"_ZN4core3ptr28drop_in_place$LT$$RF$i32$GT$17h0d137bab99301186E" to i8*), [16 x i8] c"\08\00\00\00\00\00\00\00\08\00\00\00\00\00\00\00", i8* bitcast (i1 (i32**, %"core::fmt::Formatter"*)* @"_ZN42_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$3fmt17hc17d92391008e035E" to i8*) }>, align 8, !dbg !22
+@alloc14 = private unnamed_addr constant <{ [1 x i8] }> <{ [1 x i8] c"B" }>, align 1
+@alloc15 = private unnamed_addr constant <{ [5 x i8] }> <{ [5 x i8] c"_base" }>, align 1
+@vtable.2 = private unnamed_addr constant <{ i8*, [16 x i8], i8* }> <{ i8* bitcast (void ({ i8*, i32 }**)* @"_ZN4core3ptr35drop_in_place$LT$$RF$issue1s..A$GT$17h34d6da2f88b78751E" to i8*), [16 x i8] c"\08\00\00\00\00\00\00\00\08\00\00\00\00\00\00\00", i8* bitcast (i1 ({ i8*, i32 }**, %"core::fmt::Formatter"*)* @"_ZN42_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$3fmt17he0047c5b6dcdf153E" to i8*) }>, align 8, !dbg !32
+@alloc19 = private unnamed_addr constant <{ [6 x i8] }> <{ [6 x i8] c"_m_val" }>, align 1
+
+; Function Attrs: nonlazybind uwtable
+define zeroext i1 @"_ZN42_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$3fmt17hb1973dd50076d49fE"(i8*** align 8 %self, %"core::fmt::Formatter"* align 8 %f) unnamed_addr #0 !dbg !63 {
+start:
+  %f.dbg.spill = alloca %"core::fmt::Formatter"*, align 8
+  %self.dbg.spill = alloca i8***, align 8
+  store i8*** %self, i8**** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata i8**** %self.dbg.spill, metadata !124, metadata !DIExpression()), !dbg !128
+  store %"core::fmt::Formatter"* %f, %"core::fmt::Formatter"** %f.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %"core::fmt::Formatter"** %f.dbg.spill, metadata !125, metadata !DIExpression()), !dbg !129
+  %_6 = load i8**, i8*** %self, align 8, !dbg !130, !nonnull !21, !align !131, !noundef !21
+  %0 = call zeroext i1 @"_ZN50_$LT$$BP$mut$u20$T$u20$as$u20$core..fmt..Debug$GT$3fmt17h48fdfcb1b2a437caE"(i8** align 8 %_6, %"core::fmt::Formatter"* align 8 %f), !dbg !132
+  br label %bb1, !dbg !132
+
+bb1:                                              ; preds = %start
+  ret i1 %0, !dbg !133
+}
+
+; Function Attrs: nonlazybind uwtable
+define zeroext i1 @"_ZN42_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$3fmt17hc17d92391008e035E"(i32** align 8 %self, %"core::fmt::Formatter"* align 8 %f) unnamed_addr #0 !dbg !134 {
+start:
+  %f.dbg.spill = alloca %"core::fmt::Formatter"*, align 8
+  %self.dbg.spill = alloca i32**, align 8
+  store i32** %self, i32*** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata i32*** %self.dbg.spill, metadata !139, metadata !DIExpression()), !dbg !143
+  store %"core::fmt::Formatter"* %f, %"core::fmt::Formatter"** %f.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %"core::fmt::Formatter"** %f.dbg.spill, metadata !140, metadata !DIExpression()), !dbg !144
+  %_6 = load i32*, i32** %self, align 8, !dbg !145, !nonnull !21, !align !146, !noundef !21
+  %0 = call zeroext i1 @"_ZN4core3fmt3num50_$LT$impl$u20$core..fmt..Debug$u20$for$u20$i32$GT$3fmt17h8800ea50b453f053E"(i32* align 4 %_6, %"core::fmt::Formatter"* align 8 %f), !dbg !147
+  br label %bb1, !dbg !147
+
+bb1:                                              ; preds = %start
+  ret i1 %0, !dbg !148
+}
+
+; Function Attrs: nonlazybind uwtable
+define zeroext i1 @"_ZN42_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$3fmt17he0047c5b6dcdf153E"({ i8*, i32 }** align 8 %self, %"core::fmt::Formatter"* align 8 %f) unnamed_addr #0 !dbg !149 {
+start:
+  %f.dbg.spill = alloca %"core::fmt::Formatter"*, align 8
+  %self.dbg.spill = alloca { i8*, i32 }**, align 8
+  store { i8*, i32 }** %self, { i8*, i32 }*** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata { i8*, i32 }*** %self.dbg.spill, metadata !154, metadata !DIExpression()), !dbg !158
+  store %"core::fmt::Formatter"* %f, %"core::fmt::Formatter"** %f.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %"core::fmt::Formatter"** %f.dbg.spill, metadata !155, metadata !DIExpression()), !dbg !159
+  %_6 = load { i8*, i32 }*, { i8*, i32 }** %self, align 8, !dbg !160, !nonnull !21, !align !131, !noundef !21
+  %0 = call zeroext i1 @"_ZN47_$LT$issue1s..A$u20$as$u20$core..fmt..Debug$GT$3fmt17h190b640f3850f24bE"({ i8*, i32 }* align 8 %_6, %"core::fmt::Formatter"* align 8 %f), !dbg !161
+  br label %bb1, !dbg !161
+
+bb1:                                              ; preds = %start
+  ret i1 %0, !dbg !162
+}
+
+; Function Attrs: inlinehint nonlazybind uwtable
+define internal zeroext i1 @"_ZN4core3fmt3num50_$LT$impl$u20$core..fmt..Debug$u20$for$u20$i32$GT$3fmt17h8800ea50b453f053E"(i32* align 4 %self, %"core::fmt::Formatter"* align 8 %f) unnamed_addr #1 !dbg !163 {
+start:
+  %f.dbg.spill = alloca %"core::fmt::Formatter"*, align 8
+  %self.dbg.spill = alloca i32*, align 8
+  %0 = alloca i8, align 1
+  store i32* %self, i32** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata i32** %self.dbg.spill, metadata !170, metadata !DIExpression()), !dbg !172
+  store %"core::fmt::Formatter"* %f, %"core::fmt::Formatter"** %f.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %"core::fmt::Formatter"** %f.dbg.spill, metadata !171, metadata !DIExpression()), !dbg !173
+  %_3 = call zeroext i1 @_ZN4core3fmt9Formatter15debug_lower_hex17h0be447fd1ce6c68cE(%"core::fmt::Formatter"* align 8 %f), !dbg !174
+  br label %bb1, !dbg !174
+
+bb1:                                              ; preds = %start
+  br i1 %_3, label %bb2, label %bb4, !dbg !174
+
+bb4:                                              ; preds = %bb1
+  %_7 = call zeroext i1 @_ZN4core3fmt9Formatter15debug_upper_hex17he97a574bdc69fc4aE(%"core::fmt::Formatter"* align 8 %f), !dbg !175
+  br label %bb5, !dbg !175
+
+bb2:                                              ; preds = %bb1
+  %1 = call zeroext i1 @"_ZN4core3fmt3num53_$LT$impl$u20$core..fmt..LowerHex$u20$for$u20$i32$GT$3fmt17hdde4c93bbc7b59deE"(i32* align 4 %self, %"core::fmt::Formatter"* align 8 %f), !dbg !176
+  %2 = zext i1 %1 to i8, !dbg !176
+  store i8 %2, i8* %0, align 1, !dbg !176
+  br label %bb3, !dbg !176
+
+bb3:                                              ; preds = %bb2
+  br label %bb11, !dbg !177
+
+bb11:                                             ; preds = %bb10, %bb3
+  %3 = load i8, i8* %0, align 1, !dbg !178, !range !179, !noundef !21
+  %4 = trunc i8 %3 to i1, !dbg !178
+  ret i1 %4, !dbg !178
+
+bb5:                                              ; preds = %bb4
+  br i1 %_7, label %bb6, label %bb8, !dbg !175
+
+bb8:                                              ; preds = %bb5
+  %5 = call zeroext i1 @"_ZN4core3fmt3num3imp52_$LT$impl$u20$core..fmt..Display$u20$for$u20$i32$GT$3fmt17h67bf89e2228f4d31E"(i32* align 4 %self, %"core::fmt::Formatter"* align 8 %f), !dbg !180
+  %6 = zext i1 %5 to i8, !dbg !180
+  store i8 %6, i8* %0, align 1, !dbg !180
+  br label %bb9, !dbg !180
+
+bb6:                                              ; preds = %bb5
+  %7 = call zeroext i1 @"_ZN4core3fmt3num53_$LT$impl$u20$core..fmt..UpperHex$u20$for$u20$i32$GT$3fmt17hb61b48aaba72e7b8E"(i32* align 4 %self, %"core::fmt::Formatter"* align 8 %f), !dbg !181
+  %8 = zext i1 %7 to i8, !dbg !181
+  store i8 %8, i8* %0, align 1, !dbg !181
+  br label %bb7, !dbg !181
+
+bb7:                                              ; preds = %bb6
+  br label %bb10, !dbg !182
+
+bb10:                                             ; preds = %bb9, %bb7
+  br label %bb11, !dbg !177
+
+bb9:                                              ; preds = %bb8
+  br label %bb10, !dbg !182
+}
+
+; Function Attrs: inlinehint nonlazybind uwtable
+define internal void @"_ZN4core3ptr28drop_in_place$LT$$RF$i32$GT$17h0d137bab99301186E"(i32** %_1) unnamed_addr #1 !dbg !183 {
+start:
+  %_1.dbg.spill = alloca i32**, align 8
+  store i32** %_1, i32*** %_1.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata i32*** %_1.dbg.spill, metadata !190, metadata !DIExpression()), !dbg !193
+  ret void, !dbg !193
+}
+
+; Function Attrs: inlinehint nonlazybind uwtable
+define internal void @"_ZN4core3ptr35drop_in_place$LT$$RF$issue1s..A$GT$17h34d6da2f88b78751E"({ i8*, i32 }** %_1) unnamed_addr #1 !dbg !194 {
+start:
+  %_1.dbg.spill = alloca { i8*, i32 }**, align 8
+  store { i8*, i32 }** %_1, { i8*, i32 }*** %_1.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata { i8*, i32 }*** %_1.dbg.spill, metadata !199, metadata !DIExpression()), !dbg !202
+  ret void, !dbg !202
+}
+
+; Function Attrs: inlinehint nonlazybind uwtable
+define internal void @"_ZN4core3ptr54drop_in_place$LT$$RF$$BP$mut$u20$core..ffi..c_void$GT$17h38e69b3e86a473ccE"(i8*** %_1) unnamed_addr #1 !dbg !203 {
+start:
+  %_1.dbg.spill = alloca i8***, align 8
+  store i8*** %_1, i8**** %_1.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata i8**** %_1.dbg.spill, metadata !208, metadata !DIExpression()), !dbg !211
+  ret void, !dbg !211
+}
+
+; Function Attrs: nonlazybind uwtable
+define zeroext i1 @"_ZN50_$LT$$BP$mut$u20$T$u20$as$u20$core..fmt..Debug$GT$3fmt17h48fdfcb1b2a437caE"(i8** align 8 %self, %"core::fmt::Formatter"* align 8 %f) unnamed_addr #0 !dbg !212 {
+start:
+  %f.dbg.spill = alloca %"core::fmt::Formatter"*, align 8
+  %self.dbg.spill = alloca i8**, align 8
+  store i8** %self, i8*** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata i8*** %self.dbg.spill, metadata !217, metadata !DIExpression()), !dbg !221
+  store %"core::fmt::Formatter"* %f, %"core::fmt::Formatter"** %f.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %"core::fmt::Formatter"** %f.dbg.spill, metadata !218, metadata !DIExpression()), !dbg !222
+  %0 = call zeroext i1 @"_ZN52_$LT$$BP$mut$u20$T$u20$as$u20$core..fmt..Pointer$GT$3fmt17hf6a78eac83cfda15E"(i8** align 8 %self, %"core::fmt::Formatter"* align 8 %f), !dbg !223
+  br label %bb1, !dbg !223
+
+bb1:                                              ; preds = %start
+  ret i1 %0, !dbg !224
+}
+
+; Function Attrs: nonlazybind uwtable
+define zeroext i1 @"_ZN52_$LT$$BP$mut$u20$T$u20$as$u20$core..fmt..Pointer$GT$3fmt17hf6a78eac83cfda15E"(i8** align 8 %self, %"core::fmt::Formatter"* align 8 %f) unnamed_addr #0 !dbg !225 {
+start:
+  %f.dbg.spill = alloca %"core::fmt::Formatter"*, align 8
+  %self.dbg.spill = alloca i8**, align 8
+  %_5 = alloca i8*, align 8
+  store i8** %self, i8*** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata i8*** %self.dbg.spill, metadata !228, metadata !DIExpression()), !dbg !230
+  store %"core::fmt::Formatter"* %f, %"core::fmt::Formatter"** %f.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %"core::fmt::Formatter"** %f.dbg.spill, metadata !229, metadata !DIExpression()), !dbg !231
+  %_6 = load i8*, i8** %self, align 8, !dbg !232
+  store i8* %_6, i8** %_5, align 8, !dbg !232
+  %0 = call zeroext i1 @"_ZN54_$LT$$BP$const$u20$T$u20$as$u20$core..fmt..Pointer$GT$3fmt17hb3ddf49404cc3e01E"(i8** align 8 %_5, %"core::fmt::Formatter"* align 8 %f), !dbg !233
+  br label %bb1, !dbg !233
+
+bb1:                                              ; preds = %start
+  ret i1 %0, !dbg !234
+}
+
+; Function Attrs: nonlazybind uwtable
+define zeroext i1 @"_ZN54_$LT$$BP$const$u20$T$u20$as$u20$core..fmt..Pointer$GT$3fmt17hb3ddf49404cc3e01E"(i8** align 8 %self, %"core::fmt::Formatter"* align 8 %f) unnamed_addr #0 !dbg !235 {
+start:
+  %0 = alloca i64, align 8
+  %self.dbg.spill2 = alloca {}*, align 8
+  %f.dbg.spill = alloca %"core::fmt::Formatter"*, align 8
+  %self.dbg.spill = alloca i8**, align 8
+  store i8** %self, i8*** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata i8*** %self.dbg.spill, metadata !242, metadata !DIExpression()), !dbg !244
+  store %"core::fmt::Formatter"* %f, %"core::fmt::Formatter"** %f.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %"core::fmt::Formatter"** %f.dbg.spill, metadata !243, metadata !DIExpression()), !dbg !245
+  %_5 = load i8*, i8** %self, align 8, !dbg !246
+  %self1 = bitcast i8* %_5 to {}*, !dbg !247
+  store {}* %self1, {}** %self.dbg.spill2, align 8, !dbg !247
+  call void @llvm.dbg.declare(metadata {}** %self.dbg.spill2, metadata !248, metadata !DIExpression()), !dbg !258
+  %1 = bitcast i64* %0 to {}**, !dbg !258
+  store {}* %self1, {}** %1, align 8, !dbg !258
+  %_3 = load i64, i64* %0, align 8, !dbg !258
+  br label %bb2, !dbg !258
+
+bb2:                                              ; preds = %start
+  %2 = call zeroext i1 @_ZN4core3fmt17pointer_fmt_inner17h9a09ed045cb3c6abE(i64 %_3, %"core::fmt::Formatter"* align 8 %f), !dbg !259
+  br label %bb1, !dbg !259
+
+bb1:                                              ; preds = %bb2
+  ret i1 %2, !dbg !260
+}
+
+; Function Attrs: nonlazybind uwtable
+define void @_ZN7issue1s12OA_say_hello17h12e7f89b09affbebE({ i8*, i32 }* %this) unnamed_addr #0 !dbg !261 {
+start:
+  %this.dbg.spill1 = alloca { i8*, i32 }*, align 8
+  %this.dbg.spill = alloca { i8*, i32 }*, align 8
+  store { i8*, i32 }* %this, { i8*, i32 }** %this.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata { i8*, i32 }** %this.dbg.spill, metadata !267, metadata !DIExpression()), !dbg !271
+  store { i8*, i32 }* %this, { i8*, i32 }** %this.dbg.spill1, align 8, !dbg !272
+  call void @llvm.dbg.declare(metadata { i8*, i32 }** %this.dbg.spill1, metadata !268, metadata !DIExpression()), !dbg !273
+  call void @_ZN7issue1s1A9say_hello17heeb2ce271cfd75c6E({ i8*, i32 }* align 8 %this), !dbg !274
+  br label %bb1, !dbg !274
+
+bb1:                                              ; preds = %start
+  ret void, !dbg !275
+}
+
+; Function Attrs: nonlazybind uwtable
+define void @_ZN7issue1s12OB_say_hello17h846285399a23ae8eE(%B* %this) unnamed_addr #0 !dbg !276 {
+start:
+  %this.dbg.spill1 = alloca %B*, align 8
+  %this.dbg.spill = alloca %B*, align 8
+  store %B* %this, %B** %this.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %B** %this.dbg.spill, metadata !285, metadata !DIExpression()), !dbg !289
+  store %B* %this, %B** %this.dbg.spill1, align 8, !dbg !290
+  call void @llvm.dbg.declare(metadata %B** %this.dbg.spill1, metadata !286, metadata !DIExpression()), !dbg !291
+  call void @_ZN7issue1s1B9say_hello17h43bb3380e83e6bebE(%B* align 8 %this), !dbg !292
+  br label %bb1, !dbg !292
+
+bb1:                                              ; preds = %start
+  ret void, !dbg !293
+}
+
+; Function Attrs: inlinehint nonlazybind uwtable
+define internal void @_ZN7issue1s1A9say_hello17heeb2ce271cfd75c6E({ i8*, i32 }* align 8 %self) unnamed_addr #1 !dbg !295 {
+start:
+  %self.dbg.spill = alloca { i8*, i32 }*, align 8
+  store { i8*, i32 }* %self, { i8*, i32 }** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata { i8*, i32 }** %self.dbg.spill, metadata !300, metadata !DIExpression()), !dbg !301
+  call void @"\01_ZNK1A9say_helloEv"({ i8*, i32 }* %self), !dbg !302
+  br label %bb1, !dbg !302
+
+bb1:                                              ; preds = %start
+  ret void, !dbg !303
+}
+
+; Function Attrs: inlinehint nonlazybind uwtable
+define internal void @_ZN7issue1s1B9say_hello17h43bb3380e83e6bebE(%B* align 8 %self) unnamed_addr #1 !dbg !304 {
+start:
+  %self.dbg.spill = alloca %B*, align 8
+  store %B* %self, %B** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %B** %self.dbg.spill, metadata !309, metadata !DIExpression()), !dbg !310
+  call void @"\01_ZNK1B9say_helloEv"(%B* %self), !dbg !311
+  br label %bb1, !dbg !311
+
+bb1:                                              ; preds = %start
+  ret void, !dbg !312
+}
+
+; Function Attrs: nonlazybind uwtable
+define zeroext i1 @"_ZN47_$LT$issue1s..A$u20$as$u20$core..fmt..Debug$GT$3fmt17h190b640f3850f24bE"({ i8*, i32 }* align 8 %self, %"core::fmt::Formatter"* align 8 %f) unnamed_addr #0 !dbg !313 {
+start:
+  %f.dbg.spill = alloca %"core::fmt::Formatter"*, align 8
+  %self.dbg.spill = alloca { i8*, i32 }*, align 8
+  %_17 = alloca i32*, align 8
+  %_11 = alloca i8**, align 8
+  store { i8*, i32 }* %self, { i8*, i32 }** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata { i8*, i32 }** %self.dbg.spill, metadata !318, metadata !DIExpression()), !dbg !320
+  store %"core::fmt::Formatter"* %f, %"core::fmt::Formatter"** %f.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %"core::fmt::Formatter"** %f.dbg.spill, metadata !319, metadata !DIExpression()), !dbg !320
+  %0 = bitcast { i8*, i32 }* %self to i8**, !dbg !321
+  store i8** %0, i8*** %_11, align 8, !dbg !321
+  %_8.0 = bitcast i8*** %_11 to {}*, !dbg !321
+  %1 = getelementptr inbounds { i8*, i32 }, { i8*, i32 }* %self, i32 0, i32 1, !dbg !322
+  store i32* %1, i32** %_17, align 8, !dbg !322
+  %_14.0 = bitcast i32** %_17 to {}*, !dbg !322
+  %2 = call zeroext i1 @_ZN4core3fmt9Formatter26debug_struct_field2_finish17he19226b6f261a1eeE(%"core::fmt::Formatter"* align 8 %f, [0 x i8]* align 1 bitcast (<{ [1 x i8] }>* @alloc5 to [0 x i8]*), i64 1, [0 x i8]* align 1 bitcast (<{ [3 x i8] }>* @alloc6 to [0 x i8]*), i64 3, {}* align 1 %_8.0, [3 x i64]* align 8 bitcast (<{ i8*, [16 x i8], i8* }>* @vtable.0 to [3 x i64]*), [0 x i8]* align 1 bitcast (<{ [6 x i8] }>* @alloc10 to [0 x i8]*), i64 6, {}* align 1 %_14.0, [3 x i64]* align 8 bitcast (<{ i8*, [16 x i8], i8* }>* @vtable.1 to [3 x i64]*)), !dbg !320
+  br label %bb1, !dbg !320
+
+bb1:                                              ; preds = %start
+  ret i1 %2, !dbg !323
+}
+
+; Function Attrs: nonlazybind uwtable
+define zeroext i1 @"_ZN47_$LT$issue1s..B$u20$as$u20$core..fmt..Debug$GT$3fmt17hb29819ba6b33ee85E"(%B* align 8 %self, %"core::fmt::Formatter"* align 8 %f) unnamed_addr #0 !dbg !324 {
+start:
+  %f.dbg.spill = alloca %"core::fmt::Formatter"*, align 8
+  %self.dbg.spill = alloca %B*, align 8
+  %_17 = alloca i32*, align 8
+  %_11 = alloca { i8*, i32 }*, align 8
+  store %B* %self, %B** %self.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %B** %self.dbg.spill, metadata !329, metadata !DIExpression()), !dbg !331
+  store %"core::fmt::Formatter"* %f, %"core::fmt::Formatter"** %f.dbg.spill, align 8
+  call void @llvm.dbg.declare(metadata %"core::fmt::Formatter"** %f.dbg.spill, metadata !330, metadata !DIExpression()), !dbg !331
+  %0 = bitcast %B* %self to { i8*, i32 }*, !dbg !332
+  store { i8*, i32 }* %0, { i8*, i32 }** %_11, align 8, !dbg !332
+  %_8.0 = bitcast { i8*, i32 }** %_11 to {}*, !dbg !332
+  %1 = getelementptr inbounds %B, %B* %self, i32 0, i32 1, !dbg !333
+  store i32* %1, i32** %_17, align 8, !dbg !333
+  %_14.0 = bitcast i32** %_17 to {}*, !dbg !333
+  %2 = call zeroext i1 @_ZN4core3fmt9Formatter26debug_struct_field2_finish17he19226b6f261a1eeE(%"core::fmt::Formatter"* align 8 %f, [0 x i8]* align 1 bitcast (<{ [1 x i8] }>* @alloc14 to [0 x i8]*), i64 1, [0 x i8]* align 1 bitcast (<{ [5 x i8] }>* @alloc15 to [0 x i8]*), i64 5, {}* align 1 %_8.0, [3 x i64]* align 8 bitcast (<{ i8*, [16 x i8], i8* }>* @vtable.2 to [3 x i64]*), [0 x i8]* align 1 bitcast (<{ [6 x i8] }>* @alloc19 to [0 x i8]*), i64 6, {}* align 1 %_14.0, [3 x i64]* align 8 bitcast (<{ i8*, [16 x i8], i8* }>* @vtable.1 to [3 x i64]*)), !dbg !331
+  br label %bb1, !dbg !331
+
+bb1:                                              ; preds = %start
+  ret i1 %2, !dbg !334
+}
+
+; Function Attrs: nofree nosync nounwind readnone speculatable willreturn
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #2
+
+; Function Attrs: nonlazybind uwtable
+declare zeroext i1 @_ZN4core3fmt9Formatter15debug_lower_hex17h0be447fd1ce6c68cE(%"core::fmt::Formatter"* align 8) unnamed_addr #0
+
+; Function Attrs: nonlazybind uwtable
+declare zeroext i1 @"_ZN4core3fmt3num53_$LT$impl$u20$core..fmt..LowerHex$u20$for$u20$i32$GT$3fmt17hdde4c93bbc7b59deE"(i32* align 4, %"core::fmt::Formatter"* align 8) unnamed_addr #0
+
+; Function Attrs: nonlazybind uwtable
+declare zeroext i1 @_ZN4core3fmt9Formatter15debug_upper_hex17he97a574bdc69fc4aE(%"core::fmt::Formatter"* align 8) unnamed_addr #0
+
+; Function Attrs: nonlazybind uwtable
+declare zeroext i1 @"_ZN4core3fmt3num53_$LT$impl$u20$core..fmt..UpperHex$u20$for$u20$i32$GT$3fmt17hb61b48aaba72e7b8E"(i32* align 4, %"core::fmt::Formatter"* align 8) unnamed_addr #0
+
+; Function Attrs: nonlazybind uwtable
+declare zeroext i1 @"_ZN4core3fmt3num3imp52_$LT$impl$u20$core..fmt..Display$u20$for$u20$i32$GT$3fmt17h67bf89e2228f4d31E"(i32* align 4, %"core::fmt::Formatter"* align 8) unnamed_addr #0
+
+; Function Attrs: nonlazybind uwtable
+declare zeroext i1 @_ZN4core3fmt17pointer_fmt_inner17h9a09ed045cb3c6abE(i64, %"core::fmt::Formatter"* align 8) unnamed_addr #0
+
+; Function Attrs: nonlazybind uwtable
+declare void @"\01_ZNK1A9say_helloEv"({ i8*, i32 }*) unnamed_addr #0
+
+; Function Attrs: nonlazybind uwtable
+declare void @"\01_ZNK1B9say_helloEv"(%B*) unnamed_addr #0
+
+; Function Attrs: nonlazybind uwtable
+declare zeroext i1 @_ZN4core3fmt9Formatter26debug_struct_field2_finish17he19226b6f261a1eeE(%"core::fmt::Formatter"* align 8, [0 x i8]* align 1, i64, [0 x i8]* align 1, i64, {}* align 1, [3 x i64]* align 8, [0 x i8]* align 1, i64, {}* align 1, [3 x i64]* align 8) unnamed_addr #0
+
+attributes #0 = { nonlazybind uwtable "probe-stack"="__rust_probestack" "target-cpu"="x86-64" }
+attributes #1 = { inlinehint nonlazybind uwtable "probe-stack"="__rust_probestack" "target-cpu"="x86-64" }
+attributes #2 = { nofree nosync nounwind readnone speculatable willreturn }
+
+!llvm.module.flags = !{!46, !47, !48, !49}
+!llvm.dbg.cu = !{!50}
+
+!0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
+!1 = distinct !DIGlobalVariable(name: "<&*mut core::ffi::c_void as core::fmt::Debug>::{vtable}", scope: null, file: !2, type: !3, isLocal: true, isDefinition: true)
+!2 = !DIFile(filename: "<unknown>", directory: "")
+!3 = !DICompositeType(tag: DW_TAG_structure_type, name: "<&*mut core::ffi::c_void as core::fmt::Debug>::{vtable_type}", file: !2, size: 256, align: 64, flags: DIFlagArtificial, elements: !4, vtableHolder: !12, templateParams: !21, identifier: "fbd7b64445a5c522c0c95ae931f01bed")
+!4 = !{!5, !8, !10, !11}
+!5 = !DIDerivedType(tag: DW_TAG_member, name: "drop_in_place", scope: !3, file: !2, baseType: !6, size: 64, align: 64)
+!6 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "*const ()", baseType: !7, size: 64, align: 64, dwarfAddressSpace: 0)
+!7 = !DIBasicType(name: "()", encoding: DW_ATE_unsigned)
+!8 = !DIDerivedType(tag: DW_TAG_member, name: "size", scope: !3, file: !2, baseType: !9, size: 64, align: 64, offset: 64)
+!9 = !DIBasicType(name: "usize", size: 64, encoding: DW_ATE_unsigned)
+!10 = !DIDerivedType(tag: DW_TAG_member, name: "align", scope: !3, file: !2, baseType: !9, size: 64, align: 64, offset: 128)
+!11 = !DIDerivedType(tag: DW_TAG_member, name: "__method3", scope: !3, file: !2, baseType: !6, size: 64, align: 64, offset: 192)
+!12 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "&*mut core::ffi::c_void", baseType: !13, size: 64, align: 64, dwarfAddressSpace: 0)
+!13 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "*mut core::ffi::c_void", baseType: !14, size: 64, align: 64, dwarfAddressSpace: 0)
+!14 = !DICompositeType(tag: DW_TAG_enumeration_type, name: "c_void", scope: !15, file: !2, baseType: !17, size: 8, align: 8, flags: DIFlagEnumClass, elements: !18)
+!15 = !DINamespace(name: "ffi", scope: !16)
+!16 = !DINamespace(name: "core", scope: null)
+!17 = !DIBasicType(name: "u8", size: 8, encoding: DW_ATE_unsigned)
+!18 = !{!19, !20}
+!19 = !DIEnumerator(name: "__variant1", value: 0, isUnsigned: true)
+!20 = !DIEnumerator(name: "__variant2", value: 1, isUnsigned: true)
+!21 = !{}
+!22 = !DIGlobalVariableExpression(var: !23, expr: !DIExpression())
+!23 = distinct !DIGlobalVariable(name: "<&i32 as core::fmt::Debug>::{vtable}", scope: null, file: !2, type: !24, isLocal: true, isDefinition: true)
+!24 = !DICompositeType(tag: DW_TAG_structure_type, name: "<&i32 as core::fmt::Debug>::{vtable_type}", file: !2, size: 256, align: 64, flags: DIFlagArtificial, elements: !25, vtableHolder: !30, templateParams: !21, identifier: "3cdc8a73f0dffcf39e3d0cc5135d3c77")
+!25 = !{!26, !27, !28, !29}
+!26 = !DIDerivedType(tag: DW_TAG_member, name: "drop_in_place", scope: !24, file: !2, baseType: !6, size: 64, align: 64)
+!27 = !DIDerivedType(tag: DW_TAG_member, name: "size", scope: !24, file: !2, baseType: !9, size: 64, align: 64, offset: 64)
+!28 = !DIDerivedType(tag: DW_TAG_member, name: "align", scope: !24, file: !2, baseType: !9, size: 64, align: 64, offset: 128)
+!29 = !DIDerivedType(tag: DW_TAG_member, name: "__method3", scope: !24, file: !2, baseType: !6, size: 64, align: 64, offset: 192)
+!30 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "&i32", baseType: !31, size: 64, align: 64, dwarfAddressSpace: 0)
+!31 = !DIBasicType(name: "i32", size: 32, encoding: DW_ATE_signed)
+!32 = !DIGlobalVariableExpression(var: !33, expr: !DIExpression())
+!33 = distinct !DIGlobalVariable(name: "<&issue1s::A as core::fmt::Debug>::{vtable}", scope: null, file: !2, type: !34, isLocal: true, isDefinition: true)
+!34 = !DICompositeType(tag: DW_TAG_structure_type, name: "<&issue1s::A as core::fmt::Debug>::{vtable_type}", file: !2, size: 256, align: 64, flags: DIFlagArtificial, elements: !35, vtableHolder: !40, templateParams: !21, identifier: "544dcba385a549637750d47c71b1895b")
+!35 = !{!36, !37, !38, !39}
+!36 = !DIDerivedType(tag: DW_TAG_member, name: "drop_in_place", scope: !34, file: !2, baseType: !6, size: 64, align: 64)
+!37 = !DIDerivedType(tag: DW_TAG_member, name: "size", scope: !34, file: !2, baseType: !9, size: 64, align: 64, offset: 64)
+!38 = !DIDerivedType(tag: DW_TAG_member, name: "align", scope: !34, file: !2, baseType: !9, size: 64, align: 64, offset: 128)
+!39 = !DIDerivedType(tag: DW_TAG_member, name: "__method3", scope: !34, file: !2, baseType: !6, size: 64, align: 64, offset: 192)
+!40 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "&issue1s::A", baseType: !41, size: 64, align: 64, dwarfAddressSpace: 0)
+!41 = !DICompositeType(tag: DW_TAG_structure_type, name: "A", scope: !42, file: !2, size: 128, align: 64, elements: !43, templateParams: !21, identifier: "b7e2c184ba4a9cb9f21c36d5d06b8b75")
+!42 = !DINamespace(name: "issue1s", scope: null)
+!43 = !{!44, !45}
+!44 = !DIDerivedType(tag: DW_TAG_member, name: "ptr", scope: !41, file: !2, baseType: !13, size: 64, align: 64)
+!45 = !DIDerivedType(tag: DW_TAG_member, name: "_m_buf", scope: !41, file: !2, baseType: !31, size: 32, align: 32, offset: 64)
+!46 = !{i32 7, !"PIC Level", i32 2}
+!47 = !{i32 2, !"RtLibUseGOT", i32 1}
+!48 = !{i32 2, !"Dwarf Version", i32 4}
+!49 = !{i32 2, !"Debug Info Version", i32 3}
+!50 = distinct !DICompileUnit(language: DW_LANG_Rust, file: !51, producer: "clang LLVM (rustc version 1.64.0-nightly (f9cba6374 2022-07-31))", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !52, globals: !62)
+!51 = !DIFile(filename: "src/lib.rs/@/4ulg7u1r8vkv4al2", directory: "/home/ubuntu/Workspace/RustCLA/ABIChecker/tests/i1")
+!52 = !{!14, !53}
+!53 = !DICompositeType(tag: DW_TAG_enumeration_type, name: "Alignment", scope: !54, file: !2, baseType: !17, size: 8, align: 8, flags: DIFlagEnumClass, elements: !57)
+!54 = !DINamespace(name: "v1", scope: !55)
+!55 = !DINamespace(name: "rt", scope: !56)
+!56 = !DINamespace(name: "fmt", scope: !16)
+!57 = !{!58, !59, !60, !61}
+!58 = !DIEnumerator(name: "Left", value: 0, isUnsigned: true)
+!59 = !DIEnumerator(name: "Right", value: 1, isUnsigned: true)
+!60 = !DIEnumerator(name: "Center", value: 2, isUnsigned: true)
+!61 = !DIEnumerator(name: "Unknown", value: 3, isUnsigned: true)
+!62 = !{!0, !22, !32}
+!63 = distinct !DISubprogram(name: "fmt<*mut core::ffi::c_void>", linkageName: "_ZN42_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$3fmt17hb1973dd50076d49fE", scope: !65, file: !64, line: 2361, type: !66, scopeLine: 2361, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !126, retainedNodes: !123)
+!64 = !DIFile(filename: "/rustc/f9cba63746d0fff816250b2ba7b706b5d4dcf000/library/core/src/fmt/mod.rs", directory: "", checksumkind: CSK_MD5, checksum: "18dcc19de419985ae78d2bd8ed07e5dc")
+!65 = !DINamespace(name: "{impl#59}", scope: !56)
+!66 = !DISubroutineType(types: !67)
+!67 = !{!68, !86, !87}
+!68 = !DICompositeType(tag: DW_TAG_structure_type, name: "Result<(), core::fmt::Error>", scope: !69, file: !2, size: 8, align: 8, elements: !70, templateParams: !21, identifier: "7d2d8f8fa7cd1adfcd0790efb9a41e68")
+!69 = !DINamespace(name: "result", scope: !16)
+!70 = !{!71}
+!71 = !DICompositeType(tag: DW_TAG_variant_part, scope: !68, file: !2, size: 8, align: 8, elements: !72, templateParams: !21, identifier: "da4053b05ceaafbb2a5d0c162ca3dc6", discriminator: !85)
+!72 = !{!73, !81}
+!73 = !DIDerivedType(tag: DW_TAG_member, name: "Ok", scope: !71, file: !2, baseType: !74, size: 8, align: 8, extraData: i64 0)
+!74 = !DICompositeType(tag: DW_TAG_structure_type, name: "Ok", scope: !68, file: !2, size: 8, align: 8, elements: !75, templateParams: !77, identifier: "8661b9e657e06668dc2c12fa2eb06bc5")
+!75 = !{!76}
+!76 = !DIDerivedType(tag: DW_TAG_member, name: "__0", scope: !74, file: !2, baseType: !7, align: 8, offset: 8)
+!77 = !{!78, !79}
+!78 = !DITemplateTypeParameter(name: "T", type: !7)
+!79 = !DITemplateTypeParameter(name: "E", type: !80)
+!80 = !DICompositeType(tag: DW_TAG_structure_type, name: "Error", scope: !56, file: !2, align: 8, elements: !21, identifier: "fc98057bd5303a3616baccc8ca680c9")
+!81 = !DIDerivedType(tag: DW_TAG_member, name: "Err", scope: !71, file: !2, baseType: !82, size: 8, align: 8, extraData: i64 1)
+!82 = !DICompositeType(tag: DW_TAG_structure_type, name: "Err", scope: !68, file: !2, size: 8, align: 8, elements: !83, templateParams: !77, identifier: "7c5b987816b912a975f1f8ff7d771c4c")
+!83 = !{!84}
+!84 = !DIDerivedType(tag: DW_TAG_member, name: "__0", scope: !82, file: !2, baseType: !80, align: 8, offset: 8)
+!85 = !DIDerivedType(tag: DW_TAG_member, scope: !68, file: !2, baseType: !17, size: 8, align: 8, flags: DIFlagArtificial)
+!86 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "&&*mut core::ffi::c_void", baseType: !12, size: 64, align: 64, dwarfAddressSpace: 0)
+!87 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "&mut core::fmt::Formatter", baseType: !88, size: 64, align: 64, dwarfAddressSpace: 0)
+!88 = !DICompositeType(tag: DW_TAG_structure_type, name: "Formatter", scope: !56, file: !2, size: 512, align: 64, elements: !89, templateParams: !21, identifier: "1fafe706266f1ce911c5c21ffa099199")
+!89 = !{!90, !92, !94, !95, !111, !112}
+!90 = !DIDerivedType(tag: DW_TAG_member, name: "flags", scope: !88, file: !2, baseType: !91, size: 32, align: 32, offset: 384)
+!91 = !DIBasicType(name: "u32", size: 32, encoding: DW_ATE_unsigned)
+!92 = !DIDerivedType(tag: DW_TAG_member, name: "fill", scope: !88, file: !2, baseType: !93, size: 32, align: 32, offset: 416)
+!93 = !DIBasicType(name: "char", size: 32, encoding: DW_ATE_UTF)
+!94 = !DIDerivedType(tag: DW_TAG_member, name: "align", scope: !88, file: !2, baseType: !53, size: 8, align: 8, offset: 448)
+!95 = !DIDerivedType(tag: DW_TAG_member, name: "width", scope: !88, file: !2, baseType: !96, size: 128, align: 64)
+!96 = !DICompositeType(tag: DW_TAG_structure_type, name: "Option<usize>", scope: !97, file: !2, size: 128, align: 64, elements: !98, templateParams: !21, identifier: "5738eb22aef83125d64176aca9b7b21c")
+!97 = !DINamespace(name: "option", scope: !16)
+!98 = !{!99}
+!99 = !DICompositeType(tag: DW_TAG_variant_part, scope: !96, file: !2, size: 128, align: 64, elements: !100, templateParams: !21, identifier: "b6c90093930ab1adb411d543c3709fb8", discriminator: !109)
+!100 = !{!101, !105}
+!101 = !DIDerivedType(tag: DW_TAG_member, name: "None", scope: !99, file: !2, baseType: !102, size: 128, align: 64, extraData: i64 0)
+!102 = !DICompositeType(tag: DW_TAG_structure_type, name: "None", scope: !96, file: !2, size: 128, align: 64, elements: !21, templateParams: !103, identifier: "a8804933eea6abc51bcee581a3a61566")
+!103 = !{!104}
+!104 = !DITemplateTypeParameter(name: "T", type: !9)
+!105 = !DIDerivedType(tag: DW_TAG_member, name: "Some", scope: !99, file: !2, baseType: !106, size: 128, align: 64, extraData: i64 1)
+!106 = !DICompositeType(tag: DW_TAG_structure_type, name: "Some", scope: !96, file: !2, size: 128, align: 64, elements: !107, templateParams: !103, identifier: "fd013aa7409f7a44b4ed55c961a937ef")
+!107 = !{!108}
+!108 = !DIDerivedType(tag: DW_TAG_member, name: "__0", scope: !106, file: !2, baseType: !9, size: 64, align: 64, offset: 64)
+!109 = !DIDerivedType(tag: DW_TAG_member, scope: !96, file: !2, baseType: !110, size: 64, align: 64, flags: DIFlagArtificial)
+!110 = !DIBasicType(name: "u64", size: 64, encoding: DW_ATE_unsigned)
+!111 = !DIDerivedType(tag: DW_TAG_member, name: "precision", scope: !88, file: !2, baseType: !96, size: 128, align: 64, offset: 128)
+!112 = !DIDerivedType(tag: DW_TAG_member, name: "buf", scope: !88, file: !2, baseType: !113, size: 128, align: 64, offset: 256)
+!113 = !DICompositeType(tag: DW_TAG_structure_type, name: "&mut dyn core::fmt::Write", file: !2, size: 128, align: 64, elements: !114, templateParams: !21, identifier: "3e37c7a363d2ba763ef179a883dd555b")
+!114 = !{!115, !118}
+!115 = !DIDerivedType(tag: DW_TAG_member, name: "pointer", scope: !113, file: !2, baseType: !116, size: 64, align: 64)
+!116 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !117, size: 64, align: 64, dwarfAddressSpace: 0)
+!117 = !DICompositeType(tag: DW_TAG_structure_type, name: "dyn core::fmt::Write", file: !2, align: 8, elements: !21, identifier: "95cfa81398e3251d3addeb69d75cd2f4")
+!118 = !DIDerivedType(tag: DW_TAG_member, name: "vtable", scope: !113, file: !2, baseType: !119, size: 64, align: 64, offset: 64)
+!119 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "&[usize; 3]", baseType: !120, size: 64, align: 64, dwarfAddressSpace: 0)
+!120 = !DICompositeType(tag: DW_TAG_array_type, baseType: !9, size: 192, align: 64, elements: !121)
+!121 = !{!122}
+!122 = !DISubrange(count: 3, lowerBound: 0)
+!123 = !{!124, !125}
+!124 = !DILocalVariable(name: "self", arg: 1, scope: !63, file: !64, line: 2361, type: !86)
+!125 = !DILocalVariable(name: "f", arg: 2, scope: !63, file: !64, line: 2361, type: !87)
+!126 = !{!127}
+!127 = !DITemplateTypeParameter(name: "T", type: !13)
+!128 = !DILocation(line: 2361, column: 20, scope: !63)
+!129 = !DILocation(line: 2361, column: 27, scope: !63)
+!130 = !DILocation(line: 2361, column: 71, scope: !63)
+!131 = !{i64 8}
+!132 = !DILocation(line: 2361, column: 62, scope: !63)
+!133 = !DILocation(line: 2361, column: 84, scope: !63)
+!134 = distinct !DISubprogram(name: "fmt<i32>", linkageName: "_ZN42_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$3fmt17hc17d92391008e035E", scope: !65, file: !64, line: 2361, type: !135, scopeLine: 2361, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !141, retainedNodes: !138)
+!135 = !DISubroutineType(types: !136)
+!136 = !{!68, !137, !87}
+!137 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "&&i32", baseType: !30, size: 64, align: 64, dwarfAddressSpace: 0)
+!138 = !{!139, !140}
+!139 = !DILocalVariable(name: "self", arg: 1, scope: !134, file: !64, line: 2361, type: !137)
+!140 = !DILocalVariable(name: "f", arg: 2, scope: !134, file: !64, line: 2361, type: !87)
+!141 = !{!142}
+!142 = !DITemplateTypeParameter(name: "T", type: !31)
+!143 = !DILocation(line: 2361, column: 20, scope: !134)
+!144 = !DILocation(line: 2361, column: 27, scope: !134)
+!145 = !DILocation(line: 2361, column: 71, scope: !134)
+!146 = !{i64 4}
+!147 = !DILocation(line: 2361, column: 62, scope: !134)
+!148 = !DILocation(line: 2361, column: 84, scope: !134)
+!149 = distinct !DISubprogram(name: "fmt<issue1s::A>", linkageName: "_ZN42_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$3fmt17he0047c5b6dcdf153E", scope: !65, file: !64, line: 2361, type: !150, scopeLine: 2361, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !156, retainedNodes: !153)
+!150 = !DISubroutineType(types: !151)
+!151 = !{!68, !152, !87}
+!152 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "&&issue1s::A", baseType: !40, size: 64, align: 64, dwarfAddressSpace: 0)
+!153 = !{!154, !155}
+!154 = !DILocalVariable(name: "self", arg: 1, scope: !149, file: !64, line: 2361, type: !152)
+!155 = !DILocalVariable(name: "f", arg: 2, scope: !149, file: !64, line: 2361, type: !87)
+!156 = !{!157}
+!157 = !DITemplateTypeParameter(name: "T", type: !41)
+!158 = !DILocation(line: 2361, column: 20, scope: !149)
+!159 = !DILocation(line: 2361, column: 27, scope: !149)
+!160 = !DILocation(line: 2361, column: 71, scope: !149)
+!161 = !DILocation(line: 2361, column: 62, scope: !149)
+!162 = !DILocation(line: 2361, column: 84, scope: !149)
+!163 = distinct !DISubprogram(name: "fmt", linkageName: "_ZN4core3fmt3num50_$LT$impl$u20$core..fmt..Debug$u20$for$u20$i32$GT$3fmt17h8800ea50b453f053E", scope: !165, file: !164, line: 185, type: !167, scopeLine: 185, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !21, retainedNodes: !169)
+!164 = !DIFile(filename: "/rustc/f9cba63746d0fff816250b2ba7b706b5d4dcf000/library/core/src/fmt/num.rs", directory: "", checksumkind: CSK_MD5, checksum: "6661e46781fcd4293e0f5caf32f3d8ca")
+!165 = !DINamespace(name: "{impl#80}", scope: !166)
+!166 = !DINamespace(name: "num", scope: !56)
+!167 = !DISubroutineType(types: !168)
+!168 = !{!68, !30, !87}
+!169 = !{!170, !171}
+!170 = !DILocalVariable(name: "self", arg: 1, scope: !163, file: !164, line: 185, type: !30)
+!171 = !DILocalVariable(name: "f", arg: 2, scope: !163, file: !164, line: 185, type: !87)
+!172 = !DILocation(line: 185, column: 20, scope: !163)
+!173 = !DILocation(line: 185, column: 27, scope: !163)
+!174 = !DILocation(line: 186, column: 20, scope: !163)
+!175 = !DILocation(line: 188, column: 27, scope: !163)
+!176 = !DILocation(line: 187, column: 21, scope: !163)
+!177 = !DILocation(line: 186, column: 17, scope: !163)
+!178 = !DILocation(line: 193, column: 14, scope: !163)
+!179 = !{i8 0, i8 2}
+!180 = !DILocation(line: 191, column: 21, scope: !163)
+!181 = !DILocation(line: 189, column: 21, scope: !163)
+!182 = !DILocation(line: 188, column: 24, scope: !163)
+!183 = distinct !DISubprogram(name: "drop_in_place<&i32>", linkageName: "_ZN4core3ptr28drop_in_place$LT$$RF$i32$GT$17h0d137bab99301186E", scope: !185, file: !184, line: 487, type: !186, scopeLine: 487, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !191, retainedNodes: !189)
+!184 = !DIFile(filename: "/rustc/f9cba63746d0fff816250b2ba7b706b5d4dcf000/library/core/src/ptr/mod.rs", directory: "", checksumkind: CSK_MD5, checksum: "13c32d970b0b4dd38131a1908223a155")
+!185 = !DINamespace(name: "ptr", scope: !16)
+!186 = !DISubroutineType(types: !187)
+!187 = !{null, !188}
+!188 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "*mut &i32", baseType: !30, size: 64, align: 64, dwarfAddressSpace: 0)
+!189 = !{!190}
+!190 = !DILocalVariable(arg: 1, scope: !183, file: !184, line: 487, type: !188)
+!191 = !{!192}
+!192 = !DITemplateTypeParameter(name: "T", type: !30)
+!193 = !DILocation(line: 487, column: 1, scope: !183)
+!194 = distinct !DISubprogram(name: "drop_in_place<&issue1s::A>", linkageName: "_ZN4core3ptr35drop_in_place$LT$$RF$issue1s..A$GT$17h34d6da2f88b78751E", scope: !185, file: !184, line: 487, type: !195, scopeLine: 487, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !200, retainedNodes: !198)
+!195 = !DISubroutineType(types: !196)
+!196 = !{null, !197}
+!197 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "*mut &issue1s::A", baseType: !40, size: 64, align: 64, dwarfAddressSpace: 0)
+!198 = !{!199}
+!199 = !DILocalVariable(arg: 1, scope: !194, file: !184, line: 487, type: !197)
+!200 = !{!201}
+!201 = !DITemplateTypeParameter(name: "T", type: !40)
+!202 = !DILocation(line: 487, column: 1, scope: !194)
+!203 = distinct !DISubprogram(name: "drop_in_place<&*mut core::ffi::c_void>", linkageName: "_ZN4core3ptr54drop_in_place$LT$$RF$$BP$mut$u20$core..ffi..c_void$GT$17h38e69b3e86a473ccE", scope: !185, file: !184, line: 487, type: !204, scopeLine: 487, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !209, retainedNodes: !207)
+!204 = !DISubroutineType(types: !205)
+!205 = !{null, !206}
+!206 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "*mut &*mut core::ffi::c_void", baseType: !12, size: 64, align: 64, dwarfAddressSpace: 0)
+!207 = !{!208}
+!208 = !DILocalVariable(arg: 1, scope: !203, file: !184, line: 487, type: !206)
+!209 = !{!210}
+!210 = !DITemplateTypeParameter(name: "T", type: !12)
+!211 = !DILocation(line: 487, column: 1, scope: !203)
+!212 = distinct !DISubprogram(name: "fmt<core::ffi::c_void>", linkageName: "_ZN50_$LT$$BP$mut$u20$T$u20$as$u20$core..fmt..Debug$GT$3fmt17h48fdfcb1b2a437caE", scope: !213, file: !64, line: 2531, type: !214, scopeLine: 2531, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !219, retainedNodes: !216)
+!213 = !DINamespace(name: "{impl#25}", scope: !56)
+!214 = !DISubroutineType(types: !215)
+!215 = !{!68, !12, !87}
+!216 = !{!217, !218}
+!217 = !DILocalVariable(name: "self", arg: 1, scope: !212, file: !64, line: 2531, type: !12)
+!218 = !DILocalVariable(name: "f", arg: 2, scope: !212, file: !64, line: 2531, type: !87)
+!219 = !{!220}
+!220 = !DITemplateTypeParameter(name: "T", type: !14)
+!221 = !DILocation(line: 2531, column: 12, scope: !212)
+!222 = !DILocation(line: 2531, column: 19, scope: !212)
+!223 = !DILocation(line: 2532, column: 9, scope: !212)
+!224 = !DILocation(line: 2533, column: 6, scope: !212)
+!225 = distinct !DISubprogram(name: "fmt<core::ffi::c_void>", linkageName: "_ZN52_$LT$$BP$mut$u20$T$u20$as$u20$core..fmt..Pointer$GT$3fmt17hf6a78eac83cfda15E", scope: !226, file: !64, line: 2502, type: !214, scopeLine: 2502, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !219, retainedNodes: !227)
+!226 = !DINamespace(name: "{impl#21}", scope: !56)
+!227 = !{!228, !229}
+!228 = !DILocalVariable(name: "self", arg: 1, scope: !225, file: !64, line: 2502, type: !12)
+!229 = !DILocalVariable(name: "f", arg: 2, scope: !225, file: !64, line: 2502, type: !87)
+!230 = !DILocation(line: 2502, column: 12, scope: !225)
+!231 = !DILocation(line: 2502, column: 19, scope: !225)
+!232 = !DILocation(line: 2503, column: 24, scope: !225)
+!233 = !DILocation(line: 2503, column: 9, scope: !225)
+!234 = !DILocation(line: 2504, column: 6, scope: !225)
+!235 = distinct !DISubprogram(name: "fmt<core::ffi::c_void>", linkageName: "_ZN54_$LT$$BP$const$u20$T$u20$as$u20$core..fmt..Pointer$GT$3fmt17hb3ddf49404cc3e01E", scope: !236, file: !64, line: 2462, type: !237, scopeLine: 2462, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !219, retainedNodes: !241)
+!236 = !DINamespace(name: "{impl#20}", scope: !56)
+!237 = !DISubroutineType(types: !238)
+!238 = !{!68, !239, !87}
+!239 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "&*const core::ffi::c_void", baseType: !240, size: 64, align: 64, dwarfAddressSpace: 0)
+!240 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "*const core::ffi::c_void", baseType: !14, size: 64, align: 64, dwarfAddressSpace: 0)
+!241 = !{!242, !243}
+!242 = !DILocalVariable(name: "self", arg: 1, scope: !235, file: !64, line: 2462, type: !239)
+!243 = !DILocalVariable(name: "f", arg: 2, scope: !235, file: !64, line: 2462, type: !87)
+!244 = !DILocation(line: 2462, column: 12, scope: !235)
+!245 = !DILocation(line: 2462, column: 19, scope: !235)
+!246 = !DILocation(line: 2464, column: 28, scope: !235)
+!247 = !DILocation(line: 2464, column: 27, scope: !235)
+!248 = !DILocalVariable(name: "self", scope: !249, file: !64, line: 2464, type: !6, align: 8)
+!249 = !DILexicalBlockFile(scope: !250, file: !64, discriminator: 0)
+!250 = distinct !DISubprogram(name: "addr<()>", linkageName: "_ZN4core3ptr9const_ptr33_$LT$impl$u20$$BP$const$u20$T$GT$4addr17hcbb06b1a4769d5e7E", scope: !252, file: !251, line: 178, type: !254, scopeLine: 178, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !257, retainedNodes: !256)
+!251 = !DIFile(filename: "/rustc/f9cba63746d0fff816250b2ba7b706b5d4dcf000/library/core/src/ptr/const_ptr.rs", directory: "", checksumkind: CSK_MD5, checksum: "6b6635c3709e36ccb9099e622886f9c9")
+!252 = !DINamespace(name: "{impl#0}", scope: !253)
+!253 = !DINamespace(name: "const_ptr", scope: !185)
+!254 = !DISubroutineType(types: !255)
+!255 = !{!9, !6}
+!256 = !{!248}
+!257 = !{!78}
+!258 = !DILocation(line: 2464, column: 27, scope: !249, inlinedAt: !247)
+!259 = !DILocation(line: 2464, column: 9, scope: !235)
+!260 = !DILocation(line: 2465, column: 6, scope: !235)
+!261 = distinct !DISubprogram(name: "OA_say_hello", linkageName: "_ZN7issue1s12OA_say_hello17h12e7f89b09affbebE", scope: !42, file: !262, line: 14, type: !263, scopeLine: 14, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !50, templateParams: !21, retainedNodes: !266)
+!262 = !DIFile(filename: "src/lib.rs", directory: "/home/ubuntu/Workspace/RustCLA/ABIChecker/tests/i1", checksumkind: CSK_MD5, checksum: "74abd9764194f01168365e142339caa3")
+!263 = !DISubroutineType(types: !264)
+!264 = !{null, !265}
+!265 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "*const issue1s::A", baseType: !41, size: 64, align: 64, dwarfAddressSpace: 0)
+!266 = !{!267, !268}
+!267 = !DILocalVariable(name: "this", arg: 1, scope: !261, file: !262, line: 14, type: !265)
+!268 = !DILocalVariable(name: "this", scope: !269, file: !262, line: 16, type: !270, align: 8)
+!269 = distinct !DILexicalBlock(scope: !261, file: !262, line: 16, column: 9)
+!270 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "*mut issue1s::A", baseType: !41, size: 64, align: 64, dwarfAddressSpace: 0)
+!271 = !DILocation(line: 14, column: 21, scope: !261)
+!272 = !DILocation(line: 16, column: 20, scope: !261)
+!273 = !DILocation(line: 16, column: 13, scope: !269)
+!274 = !DILocation(line: 17, column: 9, scope: !269)
+!275 = !DILocation(line: 19, column: 2, scope: !261)
+!276 = distinct !DISubprogram(name: "OB_say_hello", linkageName: "_ZN7issue1s12OB_say_hello17h846285399a23ae8eE", scope: !42, file: !262, line: 21, type: !277, scopeLine: 21, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !50, templateParams: !21, retainedNodes: !284)
+!277 = !DISubroutineType(types: !278)
+!278 = !{null, !279}
+!279 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "*const issue1s::B", baseType: !280, size: 64, align: 64, dwarfAddressSpace: 0)
+!280 = !DICompositeType(tag: DW_TAG_structure_type, name: "B", scope: !42, file: !2, size: 192, align: 64, elements: !281, templateParams: !21, identifier: "dabbaa8daa0df3b73fb17cfe0a4841b0")
+!281 = !{!282, !283}
+!282 = !DIDerivedType(tag: DW_TAG_member, name: "_base", scope: !280, file: !2, baseType: !41, size: 128, align: 64)
+!283 = !DIDerivedType(tag: DW_TAG_member, name: "_m_val", scope: !280, file: !2, baseType: !31, size: 32, align: 32, offset: 128)
+!284 = !{!285, !286}
+!285 = !DILocalVariable(name: "this", arg: 1, scope: !276, file: !262, line: 21, type: !279)
+!286 = !DILocalVariable(name: "this", scope: !287, file: !262, line: 23, type: !288, align: 8)
+!287 = distinct !DILexicalBlock(scope: !276, file: !262, line: 23, column: 9)
+!288 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "*mut issue1s::B", baseType: !280, size: 64, align: 64, dwarfAddressSpace: 0)
+!289 = !DILocation(line: 21, column: 21, scope: !276)
+!290 = !DILocation(line: 23, column: 20, scope: !276)
+!291 = !DILocation(line: 23, column: 13, scope: !287)
+!292 = !DILocation(line: 24, column: 9, scope: !287)
+!293 = !DILocation(line: 26, column: 2, scope: !294)
+!294 = !DILexicalBlockFile(scope: !276, file: !262, discriminator: 0)
+!295 = distinct !DISubprogram(name: "say_hello", linkageName: "_ZN7issue1s1A9say_hello17heeb2ce271cfd75c6E", scope: !41, file: !296, line: 42, type: !297, scopeLine: 42, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !21, retainedNodes: !299)
+!296 = !DIFile(filename: "src/../bindings.rs", directory: "/home/ubuntu/Workspace/RustCLA/ABIChecker/tests/i1", checksumkind: CSK_MD5, checksum: "73da000d08a91c1173c7daef11bd8107")
+!297 = !DISubroutineType(types: !298)
+!298 = !{null, !40}
+!299 = !{!300}
+!300 = !DILocalVariable(name: "self", arg: 1, scope: !295, file: !296, line: 42, type: !40)
+!301 = !DILocation(line: 42, column: 29, scope: !295)
+!302 = !DILocation(line: 43, column: 9, scope: !295)
+!303 = !DILocation(line: 44, column: 6, scope: !295)
+!304 = distinct !DISubprogram(name: "say_hello", linkageName: "_ZN7issue1s1B9say_hello17h43bb3380e83e6bebE", scope: !280, file: !296, line: 86, type: !305, scopeLine: 86, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !50, templateParams: !21, retainedNodes: !308)
+!305 = !DISubroutineType(types: !306)
+!306 = !{null, !307}
+!307 = !DIDerivedType(tag: DW_TAG_pointer_type, name: "&issue1s::B", baseType: !280, size: 64, align: 64, dwarfAddressSpace: 0)
+!308 = !{!309}
+!309 = !DILocalVariable(name: "self", arg: 1, scope: !304, file: !296, line: 86, type: !307)
+!310 = !DILocation(line: 86, column: 29, scope: !304)
+!311 = !DILocation(line: 87, column: 9, scope: !304)
+!312 = !DILocation(line: 88, column: 6, scope: !304)
+!313 = distinct !DISubprogram(name: "fmt", linkageName: "_ZN47_$LT$issue1s..A$u20$as$u20$core..fmt..Debug$GT$3fmt17h190b640f3850f24bE", scope: !314, file: !296, line: 4, type: !315, scopeLine: 4, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !50, templateParams: !21, retainedNodes: !317)
+!314 = !DINamespace(name: "{impl#2}", scope: !42)
+!315 = !DISubroutineType(types: !316)
+!316 = !{!68, !40, !87}
+!317 = !{!318, !319}
+!318 = !DILocalVariable(name: "self", arg: 1, scope: !313, file: !296, line: 4, type: !40)
+!319 = !DILocalVariable(name: "f", arg: 2, scope: !313, file: !296, line: 4, type: !87)
+!320 = !DILocation(line: 4, column: 10, scope: !313)
+!321 = !DILocation(line: 6, column: 5, scope: !313)
+!322 = !DILocation(line: 7, column: 5, scope: !313)
+!323 = !DILocation(line: 4, column: 15, scope: !313)
+!324 = distinct !DISubprogram(name: "fmt", linkageName: "_ZN47_$LT$issue1s..B$u20$as$u20$core..fmt..Debug$GT$3fmt17hb29819ba6b33ee85E", scope: !325, file: !296, line: 53, type: !326, scopeLine: 53, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !50, templateParams: !21, retainedNodes: !328)
+!325 = !DINamespace(name: "{impl#5}", scope: !42)
+!326 = !DISubroutineType(types: !327)
+!327 = !{!68, !307, !87}
+!328 = !{!329, !330}
+!329 = !DILocalVariable(name: "self", arg: 1, scope: !324, file: !296, line: 53, type: !307)
+!330 = !DILocalVariable(name: "f", arg: 2, scope: !324, file: !296, line: 53, type: !87)
+!331 = !DILocation(line: 53, column: 10, scope: !324)
+!332 = !DILocation(line: 55, column: 5, scope: !324)
+!333 = !DILocation(line: 56, column: 5, scope: !324)
+!334 = !DILocation(line: 53, column: 15, scope: !324)

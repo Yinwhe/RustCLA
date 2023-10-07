@@ -1,25 +1,27 @@
-use inkwell::targets::{TargetData, TargetMachine};
-use inkwell::types::StructType;
 /// IRInfo acts as a IR Information database.
+use inkwell::targets::{TargetData, TargetMachine};
 use inkwell::{module::Module, values::FunctionValue};
+
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
 
-pub struct IRInfo<'a> {
+use super::structure::ATypeLazyStruct;
+
+pub struct IRInfo<'ctx> {
     target_machine: TargetMachine,
-    r_modules: Vec<Module<'a>>,
-    c_modules: Vec<Module<'a>>,
-    rdef_functions: HashMap<String, FunctionValue<'a>>,
-    rdec_functions: HashMap<String, FunctionValue<'a>>,
-    cdef_functions: HashMap<String, FunctionValue<'a>>,
-    cdec_functions: HashMap<String, FunctionValue<'a>>,
+    r_modules: Vec<Module<'ctx>>,
+    c_modules: Vec<Module<'ctx>>,
+    rdef_functions: HashMap<String, FunctionValue<'ctx>>,
+    rdec_functions: HashMap<String, FunctionValue<'ctx>>,
+    cdef_functions: HashMap<String, FunctionValue<'ctx>>,
+    cdec_functions: HashMap<String, FunctionValue<'ctx>>,
     ffi_functions: Vec<String>,
-    ffi_structs: HashSet<(String, String)>,
+    ffi_structs: HashSet<(ATypeLazyStruct<'ctx>, ATypeLazyStruct<'ctx>)>,
 }
 
-impl IRInfo<'_> {
-    pub fn new<'a>(r: Vec<Module<'a>>, c: Vec<Module<'a>>, target: TargetMachine) -> IRInfo<'a> {
+impl<'ctx> IRInfo<'ctx> {
+    pub fn new(r: Vec<Module<'ctx>>, c: Vec<Module<'ctx>>, target: TargetMachine) -> IRInfo<'ctx> {
         IRInfo {
             target_machine: target,
             r_modules: r,
@@ -33,51 +35,59 @@ impl IRInfo<'_> {
         }
     }
 
-    pub fn ffi_functions(&self) -> Vec<String> {
-        self.ffi_functions.clone()
+    pub fn ffi_functions(&mut self) -> Vec<String> {
+        self.ffi_functions.drain(0..).collect()
     }
 
-    pub fn ffi_structs(&self) -> Vec<(String, String)> {
-        self.ffi_structs.iter().cloned().collect()
+    pub fn ffi_structs(&mut self) -> Vec<(ATypeLazyStruct<'ctx>, ATypeLazyStruct<'ctx>)> {
+        self.ffi_structs.drain().collect()
     }
 
-    pub fn c_func(&self, name: &str) -> Option<&FunctionValue> {
+    pub fn get_c_func<'t>(&'t self, name: &str) -> Option<FunctionValue<'ctx>>
+    where
+        'ctx: 't,
+    {
         self.cdef_functions
             .get(name)
             .or(self.cdec_functions.get(name))
+            .cloned()
     }
 
-    pub fn r_func(&self, name: &str) -> Option<&FunctionValue> {
+    pub fn get_r_func<'t>(&'t self, name: &str) -> Option<FunctionValue<'ctx>>
+    where
+        'ctx: 't,
+    {
         self.rdef_functions
             .get(name)
             .or(self.rdec_functions.get(name))
+            .cloned()
     }
 
-    pub fn c_struct(&self, name: &str) -> Option<StructType> {
-        for m in &self.c_modules {
-            if let Some(s) = m.get_struct_type(name) {
-                return Some(s);
-            }
-        }
+    // pub fn get_c_struct(&self, name: &str) -> Option<StructType> {
+    //     for m in &self.c_modules {
+    //         if let Some(s) = m.get_struct_type(name) {
+    //             return Some(s);
+    //         }
+    //     }
 
-        None
-    }
+    //     None
+    // }
 
-    pub fn r_struct(&self, name: &str) -> Option<StructType> {
-        for m in &self.r_modules {
-            if let Some(s) = m.get_struct_type(name) {
-                return Some(s);
-            }
-        }
+    // pub fn get_r_struct(&self, name: &str) -> Option<StructType> {
+    //     for m in &self.r_modules {
+    //         if let Some(s) = m.get_struct_type(name) {
+    //             return Some(s);
+    //         }
+    //     }
 
-        None
-    }
+    //     None
+    // }
 
     pub fn get_target_data(&self) -> TargetData {
         self.target_machine.get_target_data()
     }
 
-    pub fn add_ffi_structs(&mut self, ffis: Vec<(String, String)>) {
+    pub fn add_ffi_structs(&mut self, ffis: Vec<(ATypeLazyStruct<'ctx>, ATypeLazyStruct<'ctx>)>) {
         self.ffi_structs.extend(ffis);
     }
 

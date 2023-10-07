@@ -33,22 +33,26 @@ pub fn analysis_ir(
     analysis_funcs(ffi_funcs, &mut ir_info)?;
 
     let ffi_structs = ir_info.ffi_structs();
+    let ffi_struct_names = ffi_structs
+        .iter()
+        .map(|(r, c)| (r.get_lazy().0, c.get_lazy().0))
+        .collect::<Vec<(&String, &String)>>();
     utils::info_prompt(
         "Analysis IR",
-        &format!("checking ffi structs: {:?}", ffi_structs),
+        &format!("checking ffi structs: {:?}", ffi_struct_names),
     );
-    analysis_structs(ffi_structs, &ir_info)?;
+    analysis_structs(ffi_structs, &mut ir_info)?;
 
     Ok(())
 }
 
 /// Resolve the IR from the bitcode file and collect all modules.
-fn resolve_from_bc<'a>(
+fn resolve_from_bc<'ctx>(
     path: PathBuf,
     targets: Vec<String>,
-    cx: &'a Context,
+    cx: &'ctx Context,
     target_machine: TargetMachine,
-) -> Result<IRInfo<'a>, String> {
+) -> Result<IRInfo<'ctx>, String> {
     let file = File::open(path).map_err(|e| format!("{}", e))?;
     let lines = BufReader::new(file).lines();
 
@@ -61,7 +65,7 @@ fn resolve_from_bc<'a>(
         let line = line.map_err(|e| format!("{}", e))?;
         let path = Path::new(&line);
         let module = Module::parse_bitcode_from_path(path, cx).map_err(|e| format!("{}", e))?;
-        
+
         // Judge whether it is a C module or a Rust module
         let file_name = path.file_name().unwrap().to_str().unwrap();
         if file_name.ends_with(".bc") {

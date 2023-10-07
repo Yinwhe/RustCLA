@@ -1,29 +1,24 @@
 use super::ir_info::IRInfo;
 use super::result::{AResult, AResults};
-use super::structure::{AStruct, AType};
+use super::structure::{AStruct, AType, ATypeLazyStruct};
 
 use crate::analysis::result::{AResultLevel, StructMismatch};
 use crate::analysis::structure::AField;
 use crate::utils;
 
-pub fn analysis_structs(
-    ffi_structs: Vec<(String, String)>,
-    ir_info: &IRInfo,
+pub fn analysis_structs<'t, 'ctx: 't>(
+    ffi_structs: Vec<(ATypeLazyStruct<'ctx>, ATypeLazyStruct<'ctx>)>,
+    ir_info: &'t IRInfo<'ctx>,
 ) -> Result<(), String> {
     let target = &ir_info.get_target_data();
-    for (rname, cname) in ffi_structs {
+    for (r, c) in ffi_structs {
+        let (rname, rst) = r.get_lazy();
+        let (cname, cst) = c.get_lazy();
+
         utils::info_prompt(
             "Analysis Structs",
             &format!("checking structs: {} {}", rname, cname),
         );
-
-        let rst = ir_info
-            .r_struct(&rname)
-            .expect("Fatal, cannot find the rust struct");
-
-        let cst = ir_info
-            .c_struct(&cname)
-            .expect("Fatal, cannot find the c/c++ struct");
 
         let rst = AStruct::from_llvm_raw(&rst, target);
         let cst = AStruct::from_llvm_raw(&cst, target);
@@ -423,6 +418,10 @@ fn struct_struct(a: &AField, b: &AField) -> AResults {
 }
 
 fn show_error(res: &AResult, rst: &AStruct, cst: &AStruct) {
+    // println!("debug: res {:?}", res);
+    // println!("debug: rst {:?}", rst);
+    // println!("debug: cst {:?}", cst);
+
     match res {
         AResult::StructIssue(r_off, c_off, mis) => {
             let rf = rst.get_fields_from_offset(*r_off);

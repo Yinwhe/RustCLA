@@ -4,24 +4,29 @@ use crate::utils;
 
 use super::ir_info::IRInfo;
 use super::result::{AResult, AResults, SigMismatch};
+use super::structure::ATypeLazyStruct;
 
 /// Analysis functions.
-pub fn analysis_funcs(ffi_funcs: Vec<String>, ir_info: &mut IRInfo) -> Result<(), String> {
+pub fn analysis_funcs<'t, 'ctx: 't>(
+    ffi_funcs: Vec<String>,
+    ir_info: &'t mut IRInfo<'ctx>,
+) -> Result<(), String> {
     let target = &ir_info.get_target_data();
+    // let mut vec = Vec::new();
     for f in ffi_funcs {
         utils::info_prompt("Analysis Funcs", &format!("checking function: {}", f));
 
         let rf = ir_info
-            .r_func(&f)
+            .get_r_func(&f)
             .expect("Fatal, cannot find the rust function");
 
         let cf = ir_info
-            .c_func(&f)
+            .get_c_func(&f)
             .expect("Fatal, cannot find the c/c++ function");
 
         // get analysis functions
-        let rf = AFunction::from_llvm_raw(rf, target);
-        let cf = AFunction::from_llvm_raw(cf, target);
+        let rf = AFunction::from_llvm_raw(&rf, target);
+        let cf = AFunction::from_llvm_raw(&cf, target);
 
         let res = _analysis_funcs(&rf, &cf);
         if !res.is_empty() {
@@ -32,8 +37,9 @@ pub fn analysis_funcs(ffi_funcs: Vec<String>, ir_info: &mut IRInfo) -> Result<()
         }
 
         // get ffi structs
-        let ffis = fetch_ffi_structs(&rf, &cf);
+        let ffis = fetch_ffi_structs(rf, cf);
         ir_info.add_ffi_structs(ffis);
+        // vec.extend(ffis);
 
         utils::info_prompt("Analysis Funcs", &format!("function {} passed", f));
     }
@@ -103,15 +109,14 @@ fn shallow_check(r: &AType, c: &AType) -> bool {
     }
 }
 
-fn fetch_ffi_structs(rust_func: &AFunction, c_func: &AFunction) -> Vec<(String, String)> {
+fn fetch_ffi_structs<'ctx>(
+    rust_func: AFunction<'ctx>,
+    c_func: AFunction<'ctx>,
+) -> Vec<(ATypeLazyStruct<'ctx>, ATypeLazyStruct<'ctx>)> {
     let mut ffis = Vec::new();
-    let len = rust_func.params.len();
 
-    for i in 0..len {
-        let r_param = &rust_func.params[i];
-        let c_param = &c_func.params[i];
-
-        if let Some(ffi) = _fetch_ffi_structs(r_param, c_param) {
+    for (rty, cty) in rust_func.params.into_iter().zip(c_func.params.into_iter()) {
+        if let Some(ffi) = _fetch_ffi_structs(rty, cty) {
             ffis.push(ffi);
         }
     }
@@ -119,19 +124,22 @@ fn fetch_ffi_structs(rust_func: &AFunction, c_func: &AFunction) -> Vec<(String, 
     ffis
 }
 
-fn _fetch_ffi_structs(r: &AType, c: &AType) -> Option<(String, String)> {
+fn _fetch_ffi_structs<'ctx>(
+    r: AType<'ctx>,
+    c: AType<'ctx>,
+) -> Option<(ATypeLazyStruct<'ctx>, ATypeLazyStruct<'ctx>)> {
     match (r, c) {
         (AType::ArrayType(rty, _), AType::ArrayType(cty, _)) => {
-            return _fetch_ffi_structs(&rty, &cty);
+            return _fetch_ffi_structs(*rty, *cty);
         }
         (AType::PointerType(rty), AType::PointerType(cty)) => {
-            return _fetch_ffi_structs(&rty, &cty);
+            return _fetch_ffi_structs(*rty, *cty);
         }
         (AType::StructType(rst), AType::StructType(cst)) => {
-            return Some((rst.get_name(), cst.get_name()));
+            return Some((rst, cst));
         }
         (AType::VectorType(rty), AType::VectorType(cty)) => {
-            return _fetch_ffi_structs(&rty, &cty);
+            return _fetch_ffi_structs(*rty, *cty);
         }
         _ => {
             // nothing todo

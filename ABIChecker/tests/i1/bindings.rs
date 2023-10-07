@@ -38,9 +38,11 @@ extern "C" {
     pub fn A_A(this: *mut A);
 }
 impl A {
+    #[inline]
     pub unsafe fn say_hello(&self) {
         A_say_hello(self)
     }
+    #[inline]
     pub unsafe fn new() -> Self {
         let mut __bindgen_tmp = ::std::mem::MaybeUninit::uninit();
         A_A(__bindgen_tmp.as_mut_ptr());
@@ -80,9 +82,11 @@ extern "C" {
     pub fn B_B(this: *mut B);
 }
 impl B {
+    #[inline]
     pub unsafe fn say_hello(&self) {
         B_say_hello(self)
     }
+    #[inline]
     pub unsafe fn new() -> Self {
         let mut __bindgen_tmp = ::std::mem::MaybeUninit::uninit();
         B_B(__bindgen_tmp.as_mut_ptr());
