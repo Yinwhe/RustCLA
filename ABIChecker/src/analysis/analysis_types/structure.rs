@@ -1,4 +1,4 @@
-use std::hash::Hash;
+use std::{fmt::Display, hash::Hash};
 
 use inkwell::{
     targets::TargetData,
@@ -133,6 +133,13 @@ impl<'ctx> ATypeLazyStruct<'ctx> {
             ATypeLazyStruct::Struct(_) => panic!("Fatal Error, struct is not lazy"),
         }
     }
+
+    pub fn get_struct(&self) -> &AStruct<'ctx> {
+        match self {
+            ATypeLazyStruct::Name(_, _) => panic!("Fatal Error, struct is lazy"),
+            ATypeLazyStruct::Struct(st) => st,
+        }
+    }
 }
 
 impl<'ctx> AField<'ctx> {
@@ -260,16 +267,48 @@ impl<'ctx> AType<'ctx> {
     }
 }
 
-impl<'ctx> PartialEq for ATypeLazyStruct<'ctx> {
+impl PartialEq for ATypeLazyStruct<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.get_lazy().0 == other.get_lazy().0
     }
 }
 
-impl<'ctx> Eq for ATypeLazyStruct<'ctx> {}
+impl Eq for ATypeLazyStruct<'_> {}
 
-impl<'ctx> Hash for ATypeLazyStruct<'ctx> {
+impl Hash for ATypeLazyStruct<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.get_lazy().0.hash(state);
+    }
+}
+
+impl Display for AStruct<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fields = self
+            .fields
+            .iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        write!(f, "{{{}}}", fields)
+    }
+}
+
+impl Display for AField<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<{}> ({}, {})", self.ty, self.range.0, self.range.1)
+    }
+}
+
+impl Display for AType<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AType::ArrayType(ty, len) => write!(f, "[{} x {}]", len, ty),
+            AType::FloatType(name) => write!(f, "{}", name),
+            AType::IntType(name) => write!(f, "{}", name),
+            AType::PointerType(ty) => write!(f, "{} *", ty),
+            AType::StructType(st) => write!(f, "{}", st.get_struct()),
+            AType::VectorType(ty) => write!(f, "[{} x ?]", ty),
+        }
     }
 }

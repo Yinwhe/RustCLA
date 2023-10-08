@@ -28,6 +28,11 @@ pub fn analysis_structs<'t, 'ctx: 't>(
             for (res, _) in res.get_iters() {
                 show_error(res, &rst, &cst);
             }
+
+            utils::warn_prompt(
+                "Struct Details",
+                &format!("\nrust struct info: {}\nc/c++ struct info: {}", rst, cst),
+            );
             continue;
         }
 
@@ -418,10 +423,6 @@ fn struct_struct(a: &AField, b: &AField) -> AResults {
 }
 
 fn show_error(res: &AResult, rst: &AStruct, cst: &AStruct) {
-    // println!("debug: res {:?}", res);
-    // println!("debug: rst {:?}", rst);
-    // println!("debug: cst {:?}", cst);
-
     match res {
         AResult::StructIssue(r_off, c_off, mis) => {
             let rf = rst.get_fields_from_offset(*r_off);
@@ -432,8 +433,17 @@ fn show_error(res: &AResult, rst: &AStruct, cst: &AStruct) {
             };
 
             utils::error_prompt("Issue Found", details);
-            println!("rust side: {:?}", rf);
-            println!("c/c++ side: {:?}", cf);
+            if let Some(rf) = rf {
+                println!("rust side: {}", rf);
+            } else {
+                println!("rust side: no field found");
+            }
+
+            if let Some(cf) = cf {
+                println!("c/c++ side: {}", cf);
+            } else {
+                println!("c/c++ side: no field found");
+            }
         }
         _ => unreachable!(),
     }
