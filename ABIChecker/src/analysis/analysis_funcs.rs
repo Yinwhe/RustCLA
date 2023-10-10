@@ -3,15 +3,17 @@ use crate::analysis::structure::AType;
 use crate::utils;
 
 use super::ir_info::IRInfo;
-use super::result::{AResult, AResults, SigMismatch};
+use super::result::{AResult, AResultLevel, AResults, SigMismatch};
 use super::structure::ATypeLazyStruct;
 
 /// Analysis functions.
 pub fn analysis_funcs<'t, 'ctx: 't>(
     ffi_funcs: Vec<String>,
     ir_info: &'t mut IRInfo<'ctx>,
-) -> Result<(), String> {
+) -> Result<usize, String> {
+    let mut errors = 0;
     let target = &ir_info.get_target_data();
+
     // let mut vec = Vec::new();
     for f in ffi_funcs {
         utils::info_prompt("Analysis Funcs", &format!("checking function: {}", f));
@@ -30,21 +32,26 @@ pub fn analysis_funcs<'t, 'ctx: 't>(
 
         let res = _analysis_funcs(&rf, &cf);
         if !res.is_empty() {
-            for (res, _) in res.get_iters() {
-                show_error(res, &rf, &cf);
+            for (res, level) in res.get_iters() {
+                show_error(res, level, &rf, &cf);
             }
+
+            errors += res
+                .get_iters()
+                .filter(|(_, level)| level.is_error())
+                .count();
+
             continue;
         }
 
         // get ffi structs
         let ffis = fetch_ffi_structs(rf, cf);
         ir_info.add_ffi_structs(ffis);
-        // vec.extend(ffis);
 
         utils::info_prompt("Analysis Funcs", &format!("function {} passed", f));
     }
 
-    Ok(())
+    Ok(errors)
 }
 
 /// Analysis function usage, that is, params, call convetions, return values, etc.
@@ -149,7 +156,7 @@ fn _fetch_ffi_structs<'ctx>(
     None
 }
 
-fn show_error(res: &AResult, rf: &AFunction, cf: &AFunction) {
+fn show_error(res: &AResult, _level: &AResultLevel, rf: &AFunction, cf: &AFunction) {
     match res {
         AResult::ConventionIssue(r, c) => {
             utils::error_prompt("Issue Found", "call convention mismatch");

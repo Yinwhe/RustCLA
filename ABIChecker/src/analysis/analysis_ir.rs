@@ -30,7 +30,7 @@ pub fn analysis_ir(
         "Analysis IR",
         &format!("checking ffi functions: {:?}", ffi_funcs),
     );
-    analysis_funcs(ffi_funcs, &mut ir_info)?;
+    let func_errors = analysis_funcs(ffi_funcs, &mut ir_info)?;
 
     let ffi_structs = ir_info.ffi_structs();
     let ffi_struct_names = ffi_structs
@@ -41,7 +41,12 @@ pub fn analysis_ir(
         "Analysis IR",
         &format!("checking ffi structs: {:?}", ffi_struct_names),
     );
-    analysis_structs(ffi_structs, &mut ir_info)?;
+    let struct_errors = analysis_structs(ffi_structs, &mut ir_info)?;
+
+    utils::info_prompt(
+        "Summarize",
+        &format!("{} errors found", func_errors + struct_errors),
+    );
 
     Ok(())
 }

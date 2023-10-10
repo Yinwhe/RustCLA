@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::slice::Iter;
 
 pub struct AResults {
@@ -33,7 +32,6 @@ pub enum StructMismatch {
     TypeMismatch,
 }
 
-
 impl AResults {
     pub fn new() -> Self {
         Self {
@@ -51,11 +49,15 @@ impl AResults {
             .push((AResult::func_sig_issue(sig), AResultLevel::Error));
     }
 
-    pub fn add_struct_issue(&mut self, r_off: u32, c_off: u32, mis: StructMismatch, level: AResultLevel) {
-        self.results.push((
-            AResult::struct_issue(r_off, c_off, mis),
-            level,
-        ));
+    pub fn add_struct_issue(
+        &mut self,
+        r_off: u32,
+        c_off: u32,
+        mis: StructMismatch,
+        level: AResultLevel,
+    ) {
+        self.results
+            .push((AResult::struct_issue(r_off, c_off, mis), level));
     }
 
     pub fn get_iters(&self) -> Iter<'_, (AResult, AResultLevel)> {
@@ -85,18 +87,18 @@ impl AResult {
     }
 }
 
-// impl Display for AResult {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             Self::ConventionIssue(r, c) => {
-//                 write!(f, "call convention mismatch, rust side: {}, c/c++ side: {}", r, c)
-//             }
-//             Self::SigIssue(sig) => match sig {
-//                 SigMismatch::ParamLen => write!(f, "param length mismatch"),
-//                 SigMismatch::ParamType(i) => write!(f, "param type mismatch at {}", i),
-//                 SigMismatch::RetType => write!(f, "return type mismatch"),
-//             },
-//             Self::StructIssue(_, _, _) => write!(f, "type issue"),
-//         }
-//     }
-// }
+impl AResultLevel {
+    pub fn is_warning(&self) -> bool {
+        match self {
+            AResultLevel::Warning => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_error(&self) -> bool {
+        match self {
+            AResultLevel::Error => true,
+            _ => false,
+        }
+    }
+}

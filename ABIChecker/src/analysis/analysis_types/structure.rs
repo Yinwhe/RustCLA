@@ -63,6 +63,7 @@ impl<'ctx> AStruct<'ctx> {
                 .expect("Fatal Error, get element offset failed");
             let end = start + target.get_abi_size(&ty);
 
+
             // field type
             let fty = AType::from_anytype(ty.as_any_type_enum(), target, true);
 

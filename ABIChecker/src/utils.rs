@@ -26,3 +26,12 @@ pub fn error_prompt(title: &str, msg: &str) {
         Color::White.paint(msg)
     );
 }
+
+pub fn detail_prompt(title: &str, msg: &str) {
+    let title = format!("[{}]", title);
+    println!(
+        "{} {}",
+        Color::Blue.bold().paint(title),
+        Color::White.paint(msg)
+    );
+}

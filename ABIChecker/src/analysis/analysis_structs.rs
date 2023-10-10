@@ -9,8 +9,10 @@ use crate::utils;
 pub fn analysis_structs<'t, 'ctx: 't>(
     ffi_structs: Vec<(ATypeLazyStruct<'ctx>, ATypeLazyStruct<'ctx>)>,
     ir_info: &'t IRInfo<'ctx>,
-) -> Result<(), String> {
+) -> Result<usize, String> {
+    let mut errors = 0;
     let target = &ir_info.get_target_data();
+
     for (r, c) in ffi_structs {
         let (rname, rst) = r.get_lazy();
         let (cname, cst) = c.get_lazy();
@@ -25,14 +27,28 @@ pub fn analysis_structs<'t, 'ctx: 't>(
 
         let res = _analysis_struct(&rst, &cst);
         if !res.is_empty() {
-            for (res, _) in res.get_iters() {
-                show_error(res, &rst, &cst);
+            for (res, level) in res.get_iters() {
+                show_error(res, level, &rst, &cst);
             }
 
-            utils::warn_prompt(
+            utils::detail_prompt(
                 "Struct Details",
-                &format!("\nrust struct info: {}\nc/c++ struct info: {}", rst, cst),
+                &format!(
+                    "\nrust struct info: {} ({}, {})\nc/c++ struct info: {} ({}, {})",
+                    rst,
+                    rst.get_range().0,
+                    rst.get_range().1,
+                    cst,
+                    cst.get_range().0,
+                    cst.get_range().1
+                ),
             );
+
+            errors += res
+                .get_iters()
+                .filter(|(_, level)| level.is_error())
+                .count();
+
             continue;
         }
 
@@ -42,7 +58,7 @@ pub fn analysis_structs<'t, 'ctx: 't>(
         );
     }
 
-    Ok(())
+    Ok(errors)
 }
 
 fn _analysis_struct(rstruct: &AStruct, cstruct: &AStruct) -> AResults {
@@ -422,7 +438,7 @@ fn struct_struct(a: &AField, b: &AField) -> AResults {
     return _analysis_struct(a, b);
 }
 
-fn show_error(res: &AResult, rst: &AStruct, cst: &AStruct) {
+fn show_error(res: &AResult, level: &AResultLevel, rst: &AStruct, cst: &AStruct) {
     match res {
         AResult::StructIssue(r_off, c_off, mis) => {
             let rf = rst.get_fields_from_offset(*r_off);
@@ -432,7 +448,11 @@ fn show_error(res: &AResult, rst: &AStruct, cst: &AStruct) {
                 StructMismatch::TypeMismatch => "type mismatch",
             };
 
-            utils::error_prompt("Issue Found", details);
+            match level {
+                AResultLevel::Error => utils::error_prompt("Issue Found", details),
+                AResultLevel::Warning => utils::warn_prompt("Issue Found", details),
+            }
+
             if let Some(rf) = rf {
                 println!("rust side: {}", rf);
             } else {

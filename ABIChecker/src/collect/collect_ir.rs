@@ -1,4 +1,4 @@
-use cargo_metadata::{MetadataCommand, Package};
+use cargo_metadata::{MetadataCommand, Package, Metadata};
 use infer;
 use walkdir::WalkDir;
 
@@ -54,71 +54,81 @@ fn clean_target() -> Result<(), String> {
     }
 
     Ok(())
-}
 
+}
 /// Compile the whole crates and generate LLVM bitcode.
 fn compile_with_bc() -> Result<Vec<String>, String> {
-    let to_be_build = current_crate()?;
+    let meta = crate_meta()?;
     let mut names = Vec::new();
 
-    for target in to_be_build.targets.into_iter() {
-        let mut args = std::env::args().skip(2);
+    for member in meta.workspace_packages() {
+        utils::info_prompt("Compiling", &format!("start compiling {}...", &member.name));
 
-        let kind = target
-            .kind
-            .get(0)
-            .expect("badly formatted cargo metadata: target::kind is an empty array");
+        let manifest_path = PathBuf::from(&member.manifest_path);
+        let member_root = manifest_path.parent().expect("Failed to get parent path");
 
-        let mut cmd = cargo();
+        for target in &member.targets {
+            let mut args = std::env::args().skip(2);
 
-        cmd.arg("rustc");
-        match kind.as_str() {
-            "bin" => {
-                cmd.arg("--bin").arg(target.name.clone());
+            let kind = target
+                .kind
+                .get(0)
+                .expect("badly formatted cargo metadata: target::kind is an empty array");
+    
+            let mut cmd = cargo();
+    
+            cmd.arg("rustc");
+            match kind.as_str() {
+                "bin" => {
+                    cmd.arg("--bin").arg(target.name.clone());
+                }
+                "lib" => {
+                    cmd.arg("--lib");
+                }
+                _ => continue,
             }
-            "lib" => {
-                cmd.arg("--lib");
+    
+            // Add cargo args until first `--`.
+            while let Some(arg) = args.next() {
+                if arg == "--" {
+                    break;
+                }
+                cmd.arg(arg);
             }
-            _ => continue,
-        }
+    
+            // Set these environment variables to generate LLVM bitcode
+            cmd.env(
+                "RUSTFLAGS",
+                "-Clinker=clang -Clink-arg=-fuse-ld=lld --emit=llvm-ir",
+            );
+            cmd.env("CC", "clang");
+            cmd.env("CFLAGS", "-emit-llvm");
+    
+            cmd.env("CXX", "clang");
+            cmd.env("CXXFLAGS", "-emit-llvm");
+            cmd.env("LDFLAGS", "-Wl,-O2 -Wl,--as-needed");
+            // library environment, any better way?
+            cmd.env("LIBRARY_PATH", "/usr/lib/gcc/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib/:/lib/x86_64-linux-gnu/11/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/11/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../:/lib/:/usr/lib");
 
-        // Add cargo args until first `--`.
-        while let Some(arg) = args.next() {
-            if arg == "--" {
-                break;
+            // Set root dir
+            cmd.current_dir(member_root);
+
+            // Execute cmd
+            let output = cmd
+                .spawn()
+                .map_err(|e| format!("Failed to spawn: {}", e))?
+                .wait_with_output()
+                .map_err(|e| format!("Failed to wait cargo: {}", e))?;
+    
+            if !output.status.success() {
+                return Err(format!(
+                    "cargo failed with exit code {:?}",
+                    output.status.code(),
+                ));
             }
-            cmd.arg(arg);
+    
+            names.push(target.name.to_owned());
         }
-
-        // Set these environment variables to generate LLVM bitcode
-        cmd.env(
-            "RUSTFLAGS",
-            "-Clinker=clang -Clink-arg=-fuse-ld=lld --emit=llvm-ir",
-        );
-        cmd.env("CC", "clang");
-        cmd.env("CFLAGS", "-emit-llvm");
-
-        cmd.env("CXX", "clang");
-        cmd.env("CXXFLAGS", "-emit-llvm");
-        cmd.env("LDFLAGS", "-Wl,-O2 -Wl,--as-needed");
-        // library environment, any better way?
-        cmd.env("LIBRARY_PATH", "/usr/lib/gcc/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib/:/lib/x86_64-linux-gnu/11/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/11/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../:/lib/:/usr/lib");
-
-        // Execute cmd
-        let output = cmd
-            .spawn()
-            .map_err(|e| format!("Failed to spawn: {}", e))?
-            .wait_with_output()
-            .map_err(|e| format!("Failed to wait cargo: {}", e))?;
-
-        if !output.status.success() {
-            return Err(format!(
-                "cargo failed with exit code {:?}",
-                output.status.code(),
-            ));
-        }
-
-        names.push(target.name);
     }
 
     Ok(names)
@@ -196,19 +206,18 @@ fn generate_llvm_bc(args: &Args, targets: &Vec<String>) -> Result<PathBuf, Strin
             // Prepare llvm ir codes for debug.
             let file_name = helper::strip_hash(
                 &bitcode_path
-                    .file_name()
+                    .file_stem()
                     .unwrap()
                     .to_string_lossy()
                     .to_string(),
-            )
-            .replace(".bc", ".ll")
-            .replace(".o", ".ll");
+            ) + ".ll";
 
             // let mut cmd = Command::new("llvm-dis");
             // cmd.arg(format!("{}", &bitcode_path.to_string_lossy()))
             //     .arg("-o")
             //     .arg(root_path.join(file_name));
 
+            // println!("{:?}", cmd);
             // let res = cmd.output();
             // println!("{:?}", res);
             let _ = Command::new("llvm-dis")
@@ -222,9 +231,21 @@ fn generate_llvm_bc(args: &Args, targets: &Vec<String>) -> Result<PathBuf, Strin
     Ok(file_path)
 }
 
+fn crate_meta() -> Result<Metadata, String> {
+    let cmd = MetadataCommand::new();
+
+    let metadata = if let Ok(metadata) = cmd.exec() {
+        metadata
+    } else {
+        return Err("Could not obtain Cargo metadata; likely an ill-formed manifest".to_string());
+    };
+
+    Ok(metadata)
+}
+
 /// Get the top level crate that we need to analyze.
 /// The returned "package" contains one or many crates (targets).
-fn current_crate() -> Result<Package, String> {
+fn _current_crate() -> Result<Package, String> {
     // Path to the `Cargo.toml` file
     // let manifest_path = helper::get_arg_flag_value("--manifest-path")
     //     .map(|m| Path::new(&m).canonicalize().unwrap());
@@ -241,7 +262,6 @@ fn current_crate() -> Result<Package, String> {
     };
 
     // let current_dir = std::env::current_dir();
-
     // let package_index = metadata
     //     .packages
     //     .iter()
@@ -267,6 +287,8 @@ fn current_crate() -> Result<Package, String> {
     // let package = metadata.packages.remove(package_index);
 
     // println!("Debug: {:?}", metadata.root_package());
+
+    // Historically, if there is no root package, it is a workspace.
 
     metadata
         .root_package()
