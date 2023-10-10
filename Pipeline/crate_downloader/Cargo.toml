@@ -1,0 +1,16 @@
+[package]
+name = "crate_downloader"
+version = "0.1.0"
+edition = "2021"
+default-run = "crate_downloader"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+crossbeam = "0.8.2"
+downloader = "0.2.7"
+log = "0.4.20"
+pbr = "=1.0.4"
+postgres = "0.19.7"
+simplelog = "0.12.1"
