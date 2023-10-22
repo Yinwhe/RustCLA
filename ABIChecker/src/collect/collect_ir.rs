@@ -1,6 +1,6 @@
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 use infer;
-use walkdir::{DirEntry, WalkDir};
+use walkdir::WalkDir;
 
 use std::fs::File;
 use std::io::prelude::*;

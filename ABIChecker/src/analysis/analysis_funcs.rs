@@ -177,14 +177,14 @@ fn show_error(res: &AResult, _level: &AResultLevel, rf: &AFunction, cf: &AFuncti
     match res {
         AResult::ConventionIssue(r, c) => {
             utils::error_prompt("Issue Found", "call convention mismatch", true);
-            utils::print(&format!("rust side: {}, c/c++ side: {}", r, c), true);
+            utils::print(&format!("rust side: {}\nc/c++ side: {}", r, c), true);
         }
         AResult::SigIssue(sig) => match sig {
             SigMismatch::ParamLen => {
                 utils::error_prompt("Issue Found", "param length mismatch", true);
                 utils::print(
                     &format!(
-                        "rust side: {}, c/c++ side: {}",
+                        "rust side: {}\nc/c++ side: {}",
                         rf.params.len(),
                         cf.params.len()
                     ),
@@ -195,7 +195,7 @@ fn show_error(res: &AResult, _level: &AResultLevel, rf: &AFunction, cf: &AFuncti
                 utils::error_prompt("Issue Found", "param type mismatch", true);
                 utils::print(
                     &format!(
-                        "rust side: {:?}, c/c++ side: {:?}",
+                        "rust side: {:?}\nc/c++ side: {:?}",
                         rf.params[*i as usize], cf.params[*i as usize]
                     ),
                     true,
@@ -204,7 +204,7 @@ fn show_error(res: &AResult, _level: &AResultLevel, rf: &AFunction, cf: &AFuncti
             SigMismatch::RetType => {
                 utils::error_prompt("Issue Found", "return type mismatch", true);
                 utils::print(
-                    &format!("rust side: {:?}, c/c++ side: {:?}", rf.ret, cf.ret),
+                    &format!("rust side: {:?}\nc/c++ side: {:?}", rf.ret, cf.ret),
                     true,
                 );
             }
