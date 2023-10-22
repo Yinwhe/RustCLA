@@ -52,7 +52,7 @@ impl<'ctx> AStruct<'ctx> {
         // Only LLVM info currently, we call it raw structure
         // let is_raw = true;
         // let alignment = target.get_abi_alignment(st);
-        // let size = target.get_abi_size(&st);
+        let struct_end = target.get_abi_size(st);
 
         let mut fields = Vec::new();
         // Get field info
@@ -63,7 +63,6 @@ impl<'ctx> AStruct<'ctx> {
                 .expect("Fatal Error, get element offset failed");
             let end = start + target.get_abi_size(&ty);
 
-
             // field type
             let fty = AType::from_anytype(ty.as_any_type_enum(), target, true);
 
@@ -72,6 +71,22 @@ impl<'ctx> AStruct<'ctx> {
                 // is_padding: None,
                 ty: fty,
                 range: (start as u32, end as u32),
+            });
+        }
+
+        let field_end = if let Some(last) = fields.last() {
+            last.range.1
+        } else {
+            0
+        } as u64;
+
+        if struct_end - field_end != 0 {
+            assert!(struct_end > field_end);
+            let size = struct_end - field_end;
+
+            fields.push(AField {
+                ty: AType::ArrayType(Box::new(AType::IntType("\"i8\"".to_string())), size as u32),
+                range: (field_end as u32, struct_end as u32),
             });
         }
 
@@ -90,13 +105,17 @@ impl<'ctx> AStruct<'ctx> {
         self.fields.get(index).cloned()
     }
 
-    #[inline]
-    pub fn get_fields(&self) -> &Vec<AField> {
-        &self.fields
-    }
+    // #[inline]
+    // pub fn get_fields(&self) -> &Vec<AField> {
+    //     &self.fields
+    // }
 
     #[inline]
     pub fn get_range(&self) -> (u32, u32) {
+        if self.fields.is_empty() {
+            return (0, 0);
+        }
+
         let start = self.fields.first().unwrap().range.0;
         let end = self.fields.last().unwrap().range.1;
 
@@ -114,16 +133,6 @@ impl<'ctx> AStruct<'ctx> {
         } else {
             Some(inner)
         }
-    }
-
-    pub fn get_fields_from_offset(&self, offset: u32) -> Option<&AField> {
-        for f in &self.fields {
-            if f.get_start() == offset {
-                return Some(f);
-            }
-        }
-
-        None
     }
 }
 
@@ -188,13 +197,18 @@ impl<'ctx> AField<'ctx> {
         self.ty.to_owned()
     }
 
-    #[inline]
-    pub fn get_start(&self) -> u32 {
-        self.range.0
-    }
-
     pub fn cmp_number(&self) -> u32 {
         self.ty.cmp_number()
+    }
+
+    pub fn can_be_padding(&self) -> bool {
+        if let AType::ArrayType(ty, _) = &self.ty {
+            if let AType::IntType(_) = ty.as_ref() {
+                return true;
+            }
+        }
+
+        false
     }
 
     pub fn to_struct(&self) -> Option<&AStruct> {

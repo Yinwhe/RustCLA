@@ -1,49 +1,52 @@
-use cargo_metadata::{MetadataCommand, Package, Metadata};
+use cargo_metadata::{Metadata, MetadataCommand, Package};
 use infer;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
 
-use crate::{utils, Args};
+use crate::{utils, Opts};
 
 use super::helper;
 
 /// Top function.
-pub fn collect_ir<'a>(args: &Args) -> Result<(PathBuf, Vec<String>), String> {
-    utils::info_prompt("Collect IR", "cleanning old target...");
-    // clean_target()?;
+pub fn collect_ir<'a>(opts: &Opts) -> Result<(PathBuf, Vec<String>), String> {
+    if opts.clean_first {
+        utils::info_prompt("Collect IR", "cleanning old target...", opts.print);
+        clean_target()?;
+    }
 
     utils::info_prompt(
         "Collect IR",
         "compiling with bitcode, this may take a while...",
+        opts.print,
     );
-    let targets = compile_with_bc()?;
+    let targets = compile_with_bc(opts)?;
 
-    utils::info_prompt("Collect IR", "collecting LLVM bitcode...");
-    let bitcode_path = generate_llvm_bc(args, &targets)?;
+    if targets.is_empty() {
+        return Err("No target to build, and thus no check.".to_string());
+    }
 
-    debug!("bitcode_path: {:?}", bitcode_path);
-    debug!("targets: {:?}", targets);
+    // println!("Debug: {:?}", targets);
+
+    utils::info_prompt("Collect IR", "collecting LLVM bitcode...", opts.print);
+    let bitcode_path = generate_llvm_bc(opts, &targets)?;
+
     // return the path to the bitcode file and the targets.
     Ok((bitcode_path, targets))
 }
 
-fn cargo() -> Command {
-    Command::new("cargo")
-}
-
 #[allow(unused)]
 /// Clean target cache first.
-fn clean_target() -> Result<(), String> {
-    let mut cmd = cargo();
+pub fn clean_target() -> Result<(), String> {
+    let mut cmd = Command::new("cargo");
     cmd.arg("clean");
 
     let output = cmd
         .output()
-        .map_err(|e| format!("Failed to execute cargo: {}", e))?;
+        .map_err(|e| format!("failed to execute cargo: {}", e))?;
 
     if !output.status.success() {
         return Err(format!(
@@ -54,29 +57,34 @@ fn clean_target() -> Result<(), String> {
     }
 
     Ok(())
-
 }
 /// Compile the whole crates and generate LLVM bitcode.
-fn compile_with_bc() -> Result<Vec<String>, String> {
+fn compile_with_bc(opts: &Opts) -> Result<Vec<String>, String> {
     let meta = crate_meta()?;
     let mut names = Vec::new();
 
     for member in meta.workspace_packages() {
-        utils::info_prompt("Compiling", &format!("start compiling {}...", &member.name));
+        utils::info_prompt(
+            "Compiling",
+            &format!("start compiling {}...", &member.name),
+            opts.print,
+        );
 
         let manifest_path = PathBuf::from(&member.manifest_path);
-        let member_root = manifest_path.parent().expect("Failed to get parent path");
+        let member_root = manifest_path
+            .parent()
+            .ok_or("failed to get member root path")?;
 
         for target in &member.targets {
-            let mut args = std::env::args().skip(2);
+            // let mut args = std::env::args().skip(2);
 
             let kind = target
                 .kind
                 .get(0)
-                .expect("badly formatted cargo metadata: target::kind is an empty array");
-    
-            let mut cmd = cargo();
-    
+                .ok_or("badly formatted cargo metadata: target::kind is an empty array")?;
+
+            let mut cmd = Command::new("cargo");
+
             cmd.arg("rustc");
             match kind.as_str() {
                 "bin" => {
@@ -87,47 +95,52 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
                 }
                 _ => continue,
             }
-    
-            // Add cargo args until first `--`.
-            while let Some(arg) = args.next() {
-                if arg == "--" {
-                    break;
-                }
-                cmd.arg(arg);
-            }
-    
+
+            // Add cargo opts until first `--`.
+            // while let Some(arg) = args.next() {
+            //     if arg == "--" {
+            //         break;
+            //     }
+            //     cmd.arg(arg);
+            // }
+            cmd.arg("--all-features");
+
             // Set these environment variables to generate LLVM bitcode
             cmd.env(
                 "RUSTFLAGS",
-                "-Clinker=clang -Clink-arg=-fuse-ld=lld --emit=llvm-ir",
+                "-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld --emit=llvm-ir",
             );
             cmd.env("CC", "clang");
-            cmd.env("CFLAGS", "-emit-llvm");
-    
+            cmd.env("CFLAGS", "-flto=thin");
+
             cmd.env("CXX", "clang");
-            cmd.env("CXXFLAGS", "-emit-llvm");
+            cmd.env("CXXFLAGS", "-flto=thin");
             cmd.env("LDFLAGS", "-Wl,-O2 -Wl,--as-needed");
-            // library environment, any better way?
-            cmd.env("LIBRARY_PATH", "/usr/lib/gcc/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/11/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib/:/lib/x86_64-linux-gnu/11/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/11/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../../x86_64-linux-gnu/lib/:/usr/lib/gcc/x86_64-linux-gnu/11/../../../:/lib/:/usr/lib");
+            // library environment
+            cmd.env("LIBRARY_PATH", "/usr/lib/gcc/x86_64-linux-gnu/12/:/usr/lib/gcc/x86_64-linux-gnu/12/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/12/:/usr/lib/gcc/x86_64-linux-gnu/12/../../../../x86_64-linux-gnu/lib/x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/12/../../../../x86_64-linux-gnu/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/12/../../../x86_64-linux-gnu/12/:/usr/lib/gcc/x86_64-linux-gnu/12/../../../x86_64-linux-gnu/:/usr/lib/gcc/x86_64-linux-gnu/12/../../../../lib/:/lib/x86_64-linux-gnu/12/:/lib/x86_64-linux-gnu/:/lib/../lib/:/usr/lib/x86_64-linux-gnu/12/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-linux-gnu/12/../../../../x86_64-linux-gnu/lib/:/usr/lib/gcc/x86_64-linux-gnu/12/../../../:/lib/:/usr/lib");
 
             // Set root dir
             cmd.current_dir(member_root);
 
             // Execute cmd
-            let output = cmd
-                .spawn()
-                .map_err(|e| format!("Failed to spawn: {}", e))?
-                .wait_with_output()
-                .map_err(|e| format!("Failed to wait cargo: {}", e))?;
-    
+            let output = if opts.print {
+                cmd.spawn()
+                    .map_err(|e| format!("failed to spawn: {}", e))?
+                    .wait_with_output()
+                    .map_err(|e| format!("failed to wait cargo: {}", e))?
+            } else {
+                cmd.output()
+                    .map_err(|e| format!("failed to execute cargo: {}", e))?
+            };
+
             if !output.status.success() {
                 return Err(format!(
                     "cargo failed with exit code {:?}",
                     output.status.code(),
                 ));
             }
-    
-            names.push(target.name.to_owned());
+
+            names.push(target.name.replace("-", "_"));
         }
     }
 
@@ -135,17 +148,21 @@ fn compile_with_bc() -> Result<Vec<String>, String> {
 }
 
 /// Find all the LLVM bitcodes and gather their pathes in a file.
-fn generate_llvm_bc(args: &Args, targets: &Vec<String>) -> Result<PathBuf, String> {
+fn generate_llvm_bc(opts: &Opts, targets: &Vec<String>) -> Result<PathBuf, String> {
     let mut llvm_bitcode_paths = Vec::new();
 
     // Path to the root path of the project
-    let root_path = std::env::current_dir().unwrap();
+    let root_path = std::env::current_dir().map_err(|e| format!("{}", e))?;
 
     // Get `*.ll` files in `target/debug/deps` and convert them to `*.bc`
     let deps_path = root_path.join("target/debug/deps");
     for entry in WalkDir::new(deps_path.clone()).follow_links(true) {
-        let entry = entry.expect("Failed to get entry");
-        let file_name = entry.file_name().to_str().expect("Failed to get file name");
+        let entry = entry.map_err(|e| format!("failed to walk dir: {}", e))?;
+        // println!("{:?}", entry);
+        let file_name = entry
+            .file_name()
+            .to_str()
+            .ok_or("failed to walk dir: get file name errors")?;
 
         if file_name.ends_with(".ll") {
             // only check what we need
@@ -162,12 +179,13 @@ fn generate_llvm_bc(args: &Args, targets: &Vec<String>) -> Result<PathBuf, Strin
                 .arg("-o")
                 .arg(&bc_file_path)
                 .output()
-                .map_err(|e| format!("Failed to execute llvm-as: {}", e))?;
+                .map_err(|e| format!("failed to execute llvm-as: {}", e))?;
 
             if !output.status.success() {
                 return Err(format!(
-                    "llvm-as failed with exit code {:?}",
-                    output.status.code()
+                    "llvm-as failed with exit code {:?}, due to {:?}",
+                    output.status.code(),
+                    String::from_utf8_lossy(&output.stderr)
                 ));
             }
 
@@ -180,12 +198,62 @@ fn generate_llvm_bc(args: &Args, targets: &Vec<String>) -> Result<PathBuf, Strin
     // Note that some build scripts also generate object files, so we use `infer` crate
     // to determine whether it is really a LLVM bitcode
     let build_path = root_path.join("target/debug/build");
-    for entry in WalkDir::new(build_path.clone()).follow_links(true) {
-        let entry = entry.expect("Failed to get entry");
+
+    let loop_dirs: Vec<PathBuf> = WalkDir::new(build_path.clone())
+        .follow_links(true)
+        .into_iter()
+        .filter_map(|entry| match entry {
+            Ok(_) => None,
+            Err(e) => {
+                if let Some(p) = e.loop_ancestor() {
+                    Some(p.to_owned())
+                } else {
+                    None
+                }
+            }
+        })
+        .collect();
+
+    for entry in WalkDir::new(build_path.clone())
+        .follow_links(true)
+        .into_iter()
+        .filter_entry(|dir| {
+            // skip loop dirs
+            if loop_dirs.contains(&dir.path().to_path_buf()) {
+                return false;
+            }
+
+            // root is ok
+            if dir.depth() == 0 {
+                return true;
+            } else if dir.depth() == 1 {
+                // skip non-needed dirs
+                let name = helper::strip_hash(
+                    dir.file_name()
+                        .to_str()
+                        .expect("Fatal, failed to get dir name."),
+                )
+                .replace("-", "_");
+
+                // println!("Debug<for entry> {:?} {:?}", name, targets);
+
+                if targets.contains(&name) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                return true;
+            }
+        })
+    {
+        let entry = entry.map_err(|e| format!("failed to walk dir: {}", e))?;
+
         // Make sure the path is a file instead of a directory
         if entry.path().is_file() {
             // Make sure the file type is known
-            if let Some(kind) = infer::get_from_path(entry.path()).expect("Failed to get file type")
+            if let Some(kind) = infer::get_from_path(entry.path())
+                .map_err(|e| format!("failed to infer file type: {}", e))?
             {
                 // Make sure the file type is LLVM bitcode
                 if kind.mime_type() == "application/x-llvm" {
@@ -197,17 +265,18 @@ fn generate_llvm_bc(args: &Args, targets: &Vec<String>) -> Result<PathBuf, Strin
 
     // Write LLVM bitcode paths to a file
     let file_path = root_path.join("target/bitcode_paths");
-    let mut file = File::create(&file_path).expect("Failed to create file bitcode_paths");
+    let mut file = File::create(&file_path)
+        .map_err(|e| format!("failed to create bitcode path file: {}", e))?;
     for bitcode_path in llvm_bitcode_paths {
         file.write_all(format!("{}\n", &bitcode_path.to_string_lossy()).as_bytes())
-            .unwrap();
+            .map_err(|e| e.to_string())?;
 
-        if args.ir_files {
+        if opts.ir_files {
             // Prepare llvm ir codes for debug.
             let file_name = helper::strip_hash(
                 &bitcode_path
                     .file_stem()
-                    .unwrap()
+                    .ok_or("Failed to get file stem")?
                     .to_string_lossy()
                     .to_string(),
             ) + ".ll";
@@ -232,12 +301,21 @@ fn generate_llvm_bc(args: &Args, targets: &Vec<String>) -> Result<PathBuf, Strin
 }
 
 fn crate_meta() -> Result<Metadata, String> {
+    // let mut cmd = Command::new("rustup");
+    // cmd.args(["toolchain", "list"]);
+
+    // cmd.spawn();
+
     let cmd = MetadataCommand::new();
 
-    let metadata = if let Ok(metadata) = cmd.exec() {
-        metadata
-    } else {
-        return Err("Could not obtain Cargo metadata; likely an ill-formed manifest".to_string());
+    let metadata = match cmd.exec() {
+        Ok(metadata) => metadata,
+        Err(e) => {
+            return Err(format!(
+                "Could not obtain Cargo metadata; likely an ill-formed manifest: {}",
+                e
+            ))
+        }
     };
 
     Ok(metadata)

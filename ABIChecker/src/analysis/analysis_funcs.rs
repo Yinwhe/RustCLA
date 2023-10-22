@@ -10,13 +10,19 @@ use super::structure::ATypeLazyStruct;
 pub fn analysis_funcs<'t, 'ctx: 't>(
     ffi_funcs: Vec<String>,
     ir_info: &'t mut IRInfo<'ctx>,
-) -> Result<usize, String> {
+    print: bool,
+) -> Result<(usize, usize), String> {
+    let mut warns = 0;
     let mut errors = 0;
     let target = &ir_info.get_target_data();
 
     // let mut vec = Vec::new();
     for f in ffi_funcs {
-        utils::info_prompt("Analysis Funcs", &format!("checking function: {}", f));
+        utils::info_prompt(
+            "Analysis Funcs",
+            &format!("checking function: {}", f),
+            print,
+        );
 
         let rf = ir_info
             .get_r_func(&f)
@@ -32,14 +38,25 @@ pub fn analysis_funcs<'t, 'ctx: 't>(
 
         let res = _analysis_funcs(&rf, &cf);
         if !res.is_empty() {
-            for (res, level) in res.get_iters() {
-                show_error(res, level, &rf, &cf);
+            if print {
+                for (res, level) in res.get_iters() {
+                    show_error(res, level, &rf, &cf);
+                }
+
+                utils::detail_prompt(
+                    "Func Details",
+                    &format!("rust func info: {:?}\nc/c++ func info: {:?}", rf, cf),
+                    print,
+                );
             }
 
-            errors += res
-                .get_iters()
-                .filter(|(_, level)| level.is_error())
-                .count();
+            res.get_iters().for_each(|(_, level)| {
+                if level.is_error() {
+                    errors += 1;
+                } else {
+                    warns += 1;
+                }
+            });
 
             continue;
         }
@@ -48,10 +65,10 @@ pub fn analysis_funcs<'t, 'ctx: 't>(
         let ffis = fetch_ffi_structs(rf, cf);
         ir_info.add_ffi_structs(ffis);
 
-        utils::info_prompt("Analysis Funcs", &format!("function {} passed", f));
+        utils::info_prompt("Analysis Funcs", &format!("function {} passed", f), print);
     }
 
-    Ok(errors)
+    Ok((warns, errors))
 }
 
 /// Analysis function usage, that is, params, call convetions, return values, etc.
@@ -159,28 +176,37 @@ fn _fetch_ffi_structs<'ctx>(
 fn show_error(res: &AResult, _level: &AResultLevel, rf: &AFunction, cf: &AFunction) {
     match res {
         AResult::ConventionIssue(r, c) => {
-            utils::error_prompt("Issue Found", "call convention mismatch");
-            println!("rust side: {}, c/c++ side: {}", r, c);
+            utils::error_prompt("Issue Found", "call convention mismatch", true);
+            utils::print(&format!("rust side: {}, c/c++ side: {}", r, c), true);
         }
         AResult::SigIssue(sig) => match sig {
             SigMismatch::ParamLen => {
-                utils::error_prompt("Issue Found", "param length mismatch");
-                println!(
-                    "rust side: {}, c/c++ side: {}",
-                    rf.params.len(),
-                    cf.params.len()
+                utils::error_prompt("Issue Found", "param length mismatch", true);
+                utils::print(
+                    &format!(
+                        "rust side: {}, c/c++ side: {}",
+                        rf.params.len(),
+                        cf.params.len()
+                    ),
+                    true,
                 );
             }
             SigMismatch::ParamType(i) => {
-                utils::error_prompt("Issue Found", "param type mismatch");
-                println!(
-                    "rust side: {:?}, c/c++ side: {:?}",
-                    rf.params[*i as usize], cf.params[*i as usize]
+                utils::error_prompt("Issue Found", "param type mismatch", true);
+                utils::print(
+                    &format!(
+                        "rust side: {:?}, c/c++ side: {:?}",
+                        rf.params[*i as usize], cf.params[*i as usize]
+                    ),
+                    true,
                 );
             }
             SigMismatch::RetType => {
-                utils::error_prompt("Issue Found", "return type mismatch");
-                println!("rust side: {:?}, c/c++ side: {:?}", rf.ret, cf.ret);
+                utils::error_prompt("Issue Found", "return type mismatch", true);
+                utils::print(
+                    &format!("rust side: {:?}, c/c++ side: {:?}", rf.ret, cf.ret),
+                    true,
+                );
             }
         },
         _ => unreachable!(),

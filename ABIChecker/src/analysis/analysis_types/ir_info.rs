@@ -35,6 +35,14 @@ impl<'ctx> IRInfo<'ctx> {
         }
     }
 
+    pub fn has_rust_modules(&self) -> bool {
+        !self.r_modules.is_empty()
+    }
+
+    pub fn has_cxx_modules(&self) -> bool {
+        !self.c_modules.is_empty()
+    }
+
     pub fn ffi_functions(&mut self) -> Vec<String> {
         self.ffi_functions.drain(0..).collect()
     }
@@ -136,17 +144,22 @@ impl<'ctx> IRInfo<'ctx> {
             }
         }
 
+        // println!("debug: {}", self.r_modules.len());
         for rm in &self.r_modules {
             for f in rm.get_functions() {
                 let name = strip(f.get_name().to_str().map_err(|e| e.to_string())?).to_owned();
+
                 let ret = if f.count_basic_blocks() == 0 {
                     self.rdec_functions.insert(name, f)
                 } else {
                     self.rdef_functions.insert(name, f)
                 };
 
-                if let Some(f) = ret {
-                    return Err(format!("Duplicate function name: {:?}", f.get_name()));
+                if let Some(ff) = ret {
+                    return Err(format!(
+                        "Duplicate function name: {:?}",
+                        ff.get_name(),
+                    ));
                 }
             }
         }
@@ -160,8 +173,11 @@ impl<'ctx> IRInfo<'ctx> {
                     self.cdef_functions.insert(name, f)
                 };
 
-                if let Some(f) = ret {
-                    return Err(format!("Duplicate function name: {:?}", f.get_name()));
+                if let Some(ff) = ret {
+                    return Err(format!(
+                        "Duplicate function name: {:?}",
+                        ff.get_name(),
+                    ));
                 }
             }
         }

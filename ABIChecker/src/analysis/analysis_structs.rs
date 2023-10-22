@@ -9,7 +9,9 @@ use crate::utils;
 pub fn analysis_structs<'t, 'ctx: 't>(
     ffi_structs: Vec<(ATypeLazyStruct<'ctx>, ATypeLazyStruct<'ctx>)>,
     ir_info: &'t IRInfo<'ctx>,
-) -> Result<usize, String> {
+    print: bool,
+) -> Result<(usize, usize), String> {
+    let mut warns = 0;
     let mut errors = 0;
     let target = &ir_info.get_target_data();
 
@@ -20,34 +22,41 @@ pub fn analysis_structs<'t, 'ctx: 't>(
         utils::info_prompt(
             "Analysis Structs",
             &format!("checking structs: {} {}", rname, cname),
+            print,
         );
 
         let rst = AStruct::from_llvm_raw(&rst, target);
         let cst = AStruct::from_llvm_raw(&cst, target);
 
         let res = _analysis_struct(&rst, &cst);
+        // println!("Out");
         if !res.is_empty() {
-            for (res, level) in res.get_iters() {
-                show_error(res, level, &rst, &cst);
+            if print {
+                for (res, level) in res.get_iters() {
+                    show_error(res, level, &rst, &cst);
+                }
+
+                utils::detail_prompt(
+                    "Struct Details",
+                    &format!(
+                        "\nrust struct info: {} ({}, {})\nc/c++ struct info: {} ({}, {})",
+                        rst,
+                        rst.get_range().0,
+                        rst.get_range().1,
+                        cst,
+                        cst.get_range().0,
+                        cst.get_range().1
+                    ),
+                    print,
+                );
             }
-
-            utils::detail_prompt(
-                "Struct Details",
-                &format!(
-                    "\nrust struct info: {} ({}, {})\nc/c++ struct info: {} ({}, {})",
-                    rst,
-                    rst.get_range().0,
-                    rst.get_range().1,
-                    cst,
-                    cst.get_range().0,
-                    cst.get_range().1
-                ),
-            );
-
-            errors += res
-                .get_iters()
-                .filter(|(_, level)| level.is_error())
-                .count();
+            res.get_iters().for_each(|(_, level)| {
+                if level.is_error() {
+                    errors += 1;
+                } else {
+                    warns += 1;
+                }
+            });
 
             continue;
         }
@@ -55,13 +64,15 @@ pub fn analysis_structs<'t, 'ctx: 't>(
         utils::info_prompt(
             "Analysis Structs",
             &format!("structs: {} {} passed", rname, cname),
+            print,
         );
     }
 
-    Ok(errors)
+    Ok((warns, errors))
 }
 
 fn _analysis_struct(rstruct: &AStruct, cstruct: &AStruct) -> AResults {
+    // println!("In, check struct: {} {}", rstruct, cstruct);
     enum AStatus {
         Match,
         RustRemain,
@@ -86,7 +97,6 @@ fn _analysis_struct(rstruct: &AStruct, cstruct: &AStruct) -> AResults {
     // Check size
     while let (Some(rf), Some(cf)) = (rstruct.get_field(r_index), cstruct.get_field(c_index)) {
         let (rf_size, cf_size) = (rf.get_size(), cf.get_size());
-        debug!("check size: {:?}, {:?}", rf, cf);
 
         match status {
             AStatus::Match => {
@@ -146,8 +156,11 @@ fn _analysis_struct(rstruct: &AStruct, cstruct: &AStruct) -> AResults {
                 } else {
                     // mismatch occurs
                     res.add_struct_issue(
-                        processed_total_size,
-                        processed_total_size,
+                        (processed_total_size, processed_total_size + rf_size),
+                        (
+                            processed_total_size,
+                            processed_total_size + cf_size + accumulate,
+                        ),
                         StructMismatch::SizeMismatch,
                         AResultLevel::Error,
                     );
@@ -189,8 +202,11 @@ fn _analysis_struct(rstruct: &AStruct, cstruct: &AStruct) -> AResults {
                 } else {
                     // mismatch occurs
                     res.add_struct_issue(
-                        processed_total_size,
-                        processed_total_size,
+                        (
+                            processed_total_size,
+                            processed_total_size + rf_size + accumulate,
+                        ),
+                        (processed_total_size, processed_total_size + cf_size),
                         StructMismatch::SizeMismatch,
                         AResultLevel::Error,
                     );
@@ -223,35 +239,34 @@ fn _analysis_struct(rstruct: &AStruct, cstruct: &AStruct) -> AResults {
     let r_remain = r_match;
     let c_remain = c_match;
 
-    debug!(
-        "processed_size: {}\nmatches: {:#?}",
-        processed_total_size, matches
-    );
-
-    debug!("r_remain: {:#?}\nc_remain: {:#?}", r_remain, c_remain);
+    // println!("r_remain: {:#?}\nc_remain: {:#?}", r_remain, c_remain);
 
     // unmatched fields, should be errors
     if !r_remain.is_empty() || !c_remain.is_empty() {
+        let r_end = r_remain
+            .last()
+            .map(|f| f.get_range().1)
+            .unwrap_or(processed_total_size);
+        let c_end = c_remain
+            .last()
+            .map(|f| f.get_range().1)
+            .unwrap_or(processed_total_size);
+
         res.add_struct_issue(
-            processed_total_size,
-            processed_total_size,
+            (processed_total_size, r_end),
+            (processed_total_size, c_end),
             StructMismatch::SizeMismatch,
-            AResultLevel::Warning,
+            AResultLevel::Error,
         );
-        // result.add_info(AnalysisResultContent::error(
-        //     (processed_total_size, 0),
-        //     (processed_total_size, 0),
-        //     AnalysisResultType::SizeMismatch,
-        //     format!("Unmatched fields found, can be errors"),
-        // ));
-        // // but no return
     }
 
     // type checks
     for (rf, cf) in matches {
+        // println!("check match {} {}", rf, cf);
         res.extend(deep_check(&rf, &cf));
     }
 
+    // println!("Out");
     return res;
 }
 
@@ -279,8 +294,8 @@ fn normal_normal(a: &AField, b: &AField) -> AResults {
         (AType::FloatType(r), AType::FloatType(c)) => {
             if r != c {
                 res.add_struct_issue(
-                    a.get_start(),
-                    b.get_start(),
+                    a.get_range(),
+                    b.get_range(),
                     StructMismatch::TypeMismatch,
                     AResultLevel::Error,
                 );
@@ -290,8 +305,8 @@ fn normal_normal(a: &AField, b: &AField) -> AResults {
         (AType::IntType(r), AType::IntType(c)) => {
             if r != c {
                 res.add_struct_issue(
-                    a.get_start(),
-                    b.get_start(),
+                    a.get_range(),
+                    b.get_range(),
                     StructMismatch::TypeMismatch,
                     AResultLevel::Error,
                 );
@@ -309,8 +324,8 @@ fn normal_normal(a: &AField, b: &AField) -> AResults {
         }
         _ => {
             res.add_struct_issue(
-                a.get_start(),
-                b.get_start(),
+                a.get_range(),
+                b.get_range(),
                 StructMismatch::TypeMismatch,
                 AResultLevel::Error,
             );
@@ -323,10 +338,10 @@ fn normal_normal(a: &AField, b: &AField) -> AResults {
 fn normal_array(a: &AField, b: &AField) -> AResults {
     let mut res = AResults::new();
     res.add_struct_issue(
-        a.get_start(),
-        b.get_start(),
+        a.get_range(),
+        b.get_range(),
         StructMismatch::TypeMismatch,
-        AResultLevel::Warning,
+        AResultLevel::Error,
     );
 
     return res;
@@ -341,8 +356,8 @@ fn normal_struct(a: &AField, b: &AField) -> AResults {
         return deep_check(a, b);
     } else {
         res.add_struct_issue(
-            a.get_start(),
-            b.get_start(),
+            a.get_range(),
+            b.get_range(),
             StructMismatch::TypeMismatch,
             AResultLevel::Error,
         );
@@ -354,10 +369,10 @@ fn normal_struct(a: &AField, b: &AField) -> AResults {
 fn array_normal(a: &AField, b: &AField) -> AResults {
     let mut res = AResults::new();
     res.add_struct_issue(
-        a.get_start(),
-        b.get_start(),
+        a.get_range(),
+        b.get_range(),
         StructMismatch::TypeMismatch,
-        AResultLevel::Warning,
+        AResultLevel::Error,
     );
 
     return res;
@@ -366,8 +381,24 @@ fn array_normal(a: &AField, b: &AField) -> AResults {
 fn array_array(a: &AField, b: &AField) -> AResults {
     match (a.get_type(), b.get_type()) {
         (AType::ArrayType(r, _), AType::ArrayType(c, _)) => {
+            // possiblly padding, so only warnning.
+            if let (AType::IntType(ri), AType::IntType(ci)) = (r.as_ref(), c.as_ref()) {
+                let mut res = AResults::new();
+                if ri != ci {
+                    res.add_struct_issue(
+                        a.get_range(),
+                        b.get_range(),
+                        StructMismatch::TypeMismatch,
+                        AResultLevel::Error,
+                    );
+                };
+
+                return res;
+            }
+
             let r = AField::temp_field(*r, a.get_range());
             let c = AField::temp_field(*c, b.get_range());
+
             return deep_check(&r, &c);
         }
         _ => unreachable!(),
@@ -383,10 +414,10 @@ fn array_struct(a: &AField, b: &AField) -> AResults {
         return deep_check(a, b);
     } else {
         res.add_struct_issue(
-            a.get_start(),
-            b.get_start(),
+            a.get_range(),
+            b.get_range(),
             StructMismatch::TypeMismatch,
-            AResultLevel::Warning,
+            AResultLevel::Error,
         );
     }
 
@@ -402,8 +433,8 @@ fn struct_normal(a: &AField, b: &AField) -> AResults {
         return deep_check(a, b);
     } else {
         res.add_struct_issue(
-            a.get_start(),
-            b.get_start(),
+            a.get_range(),
+            b.get_range(),
             StructMismatch::TypeMismatch,
             AResultLevel::Error,
         );
@@ -421,10 +452,10 @@ fn struct_array(a: &AField, b: &AField) -> AResults {
         return deep_check(a, b);
     } else {
         res.add_struct_issue(
-            a.get_start(),
-            b.get_start(),
+            a.get_range(),
+            b.get_range(),
             StructMismatch::TypeMismatch,
-            AResultLevel::Warning,
+            AResultLevel::Error,
         );
     }
 
@@ -438,32 +469,21 @@ fn struct_struct(a: &AField, b: &AField) -> AResults {
     return _analysis_struct(a, b);
 }
 
-fn show_error(res: &AResult, level: &AResultLevel, rst: &AStruct, cst: &AStruct) {
+fn show_error(res: &AResult, level: &AResultLevel, _rst: &AStruct, _cst: &AStruct) {
     match res {
-        AResult::StructIssue(r_off, c_off, mis) => {
-            let rf = rst.get_fields_from_offset(*r_off);
-            let cf = cst.get_fields_from_offset(*c_off);
+        AResult::StructIssue(r_range, c_range, mis) => {
             let details = match mis {
                 StructMismatch::SizeMismatch => "size mismatch",
                 StructMismatch::TypeMismatch => "type mismatch",
             };
 
             match level {
-                AResultLevel::Error => utils::error_prompt("Issue Found", details),
-                AResultLevel::Warning => utils::warn_prompt("Issue Found", details),
+                AResultLevel::Error => utils::error_prompt("Issue Found", details, true),
+                AResultLevel::Warning => utils::warn_prompt("Issue Found", details, true),
             }
 
-            if let Some(rf) = rf {
-                println!("rust side: {}", rf);
-            } else {
-                println!("rust side: no field found");
-            }
-
-            if let Some(cf) = cf {
-                println!("c/c++ side: {}", cf);
-            } else {
-                println!("c/c++ side: no field found");
-            }
+            utils::print(&format!("rust side: {:?}", r_range), true);
+            utils::print(&format!("c/c++ side: {:?}", c_range), true);
         }
         _ => unreachable!(),
     }

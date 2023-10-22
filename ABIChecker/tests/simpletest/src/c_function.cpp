@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <algorithm>
 #include "c_function.hpp"
 
 extern "C" {

@@ -15,5 +15,7 @@ clap = { version = "4.2.7", features = ["derive"] }
 walkdir = "2.3.3"
 infer = "0.15.0"
 cargo_metadata = "0.17.0"
-serde = "1.0.188"
-serde_json = "1.0.105"
+rustc_version = "0.4.0"
+
+[profile.dev]
+panic = "unwind"

@@ -16,7 +16,7 @@ pub enum AResult {
     SigIssue(SigMismatch),
 
     // structs issues
-    StructIssue(u32, u32, StructMismatch),
+    StructIssue((u32, u32), (u32, u32), StructMismatch),
 }
 
 #[derive(Debug)]
@@ -51,13 +51,13 @@ impl AResults {
 
     pub fn add_struct_issue(
         &mut self,
-        r_off: u32,
-        c_off: u32,
+        r_range: (u32, u32),
+        c_range: (u32, u32),
         mis: StructMismatch,
         level: AResultLevel,
     ) {
         self.results
-            .push((AResult::struct_issue(r_off, c_off, mis), level));
+            .push((AResult::struct_issue(r_range, c_range, mis), level));
     }
 
     pub fn get_iters(&self) -> Iter<'_, (AResult, AResultLevel)> {
@@ -82,8 +82,8 @@ impl AResult {
         AResult::SigIssue(mis)
     }
 
-    pub fn struct_issue(r_off: u32, c_off: u32, mis: StructMismatch) -> Self {
-        AResult::StructIssue(r_off, c_off, mis)
+    pub fn struct_issue(r_range: (u32, u32), c_range: (u32, u32), mis: StructMismatch) -> Self {
+        AResult::StructIssue(r_range, c_range, mis)
     }
 }
 
