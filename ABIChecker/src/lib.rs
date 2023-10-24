@@ -14,6 +14,9 @@ mod collect;
 mod target;
 mod utils;
 
+pub use analysis::AnalysisOverriew;
+pub use collect::CollectOverriew;
+
 // #[macro_use]
 // extern crate log;
 
@@ -50,8 +53,8 @@ pub fn binary() {
 
     // Collect IR
     utils::info_prompt("Collect", "start collecting ir", true);
-    let (bitcode_path, _) = match collect::collect_ir(&opts) {
-        Ok((bitcode_path, targets)) => (bitcode_path, targets),
+    let cview = match collect::collect_ir(&opts) {
+        Ok(view) => view,
         Err(e) => {
             utils::error_prompt(
                 "Collect IR Error",
@@ -67,11 +70,11 @@ pub fn binary() {
     // Resolve and analysis IR
     let target_machin = host_target();
 
-    opts.bitcode_path.write(bitcode_path);
+    opts.bitcode_path.write(cview.bitcode_path);
     opts.target_machin.write(target_machin);
 
     utils::info_prompt("Analysis", "start analyzing ir", true);
-    let issue = match analysis::analysis_ir(opts) {
+    let aview = match analysis::analysis_ir(opts) {
         Err(e) => {
             utils::error_prompt(
                 "Resolve IR Error",
@@ -82,13 +85,32 @@ pub fn binary() {
 
             return;
         }
-        Ok(issue) => issue,
+        Ok(aview) => aview,
     };
 
     utils::info_prompt(
         "Summarize",
-        &format!("Detect:\n\tfunc warns: {}\n\tfunc errors: {}\n\tstruct warns: {}\n\tstruct errors: {}\n\trust modules: {}\n\tcxx modules: {}",
-        issue.0, issue.1, issue.2, issue.3, issue.4, issue.5),
+        &format!(
+            "Detect:
+\tfunc warns: {}
+\tfunc errors: {}
+\tstruct warns: {}
+\tstruct errors: {}
+\trust modules: {}
+\tcxx modules: {}
+\tuse cxx: {}
+\tuse bindgen: {}
+\tuse cbindgen: {}",
+            aview.func_warns,
+            aview.func_errors,
+            aview.struct_warns,
+            aview.struct_errors,
+            aview.has_rust_modules,
+            aview.has_cxx_modules,
+            cview.use_cxx,
+            cview.use_bindgen,
+            cview.use_cbindgen,
+        ),
         true,
     );
 
@@ -97,7 +119,7 @@ pub fn binary() {
 
 /// Check ffi issues in library mode.
 /// return: func warnings, func errors, struct warnings, struct errors, detect rust modules, detect cxx modules
-pub fn lib() -> Result<(usize, usize, usize, usize, bool, bool), String> {
+pub fn lib() -> Result<(CollectOverriew, AnalysisOverriew), String> {
     let args = Args {
         ir_files: false,
         clean_first: false,
@@ -110,8 +132,8 @@ pub fn lib() -> Result<(usize, usize, usize, usize, bool, bool), String> {
     precheck()?;
 
     // Collect IR
-    let (bitcode_path, _) = match collect::collect_ir(&opts) {
-        Ok((bitcode_path, targets)) => (bitcode_path, targets),
+    let cview = match collect::collect_ir(&opts) {
+        Ok(cview) => cview,
         Err(e) => {
             return Err(format!("collect ir failed, due to: {}", e));
         }
@@ -120,17 +142,17 @@ pub fn lib() -> Result<(usize, usize, usize, usize, bool, bool), String> {
     // Resolve and analysis IR
     let target_machin = host_target();
 
-    opts.bitcode_path.write(bitcode_path);
+    opts.bitcode_path.write(cview.bitcode_path.clone());
     opts.target_machin.write(target_machin);
 
-    let issues = match analysis::analysis_ir(opts) {
+    let aview = match analysis::analysis_ir(opts) {
         Ok(issues) => issues,
         Err(e) => {
             return Err(format!("resolve ir failed, due to: {}", e));
         }
     };
 
-    Ok(issues)
+    Ok((cview, aview))
 }
 
 fn precheck() -> Result<(), String> {

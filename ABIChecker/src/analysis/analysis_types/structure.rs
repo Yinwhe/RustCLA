@@ -266,7 +266,11 @@ impl<'ctx> AType<'ctx> {
                 target,
                 extend_struct,
             ))),
-            _ => unimplemented!(),
+            // TODO: Why and how to handle these types?
+            // Currently we just use int type to represent them, since
+            // we can store string into it.
+            AnyTypeEnum::FunctionType(fp) => AType::IntType(fp.to_string()),
+            AnyTypeEnum::VoidType(v) => AType::IntType(v.to_string()),
         }
     }
 

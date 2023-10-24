@@ -11,8 +11,16 @@ use crate::{utils, Opts};
 
 use super::helper;
 
+pub struct CollectOverriew {
+    pub bitcode_path: PathBuf,
+    pub targets: Vec<String>,
+    pub use_cxx: bool,
+    pub use_bindgen: bool,
+    pub use_cbindgen: bool,
+}
+
 /// Top function.
-pub fn collect_ir<'a>(opts: &Opts) -> Result<(PathBuf, Vec<String>), String> {
+pub fn collect_ir<'a>(opts: &Opts) -> Result<CollectOverriew, String> {
     if opts.clean_first {
         utils::info_prompt("Collect IR", "cleanning old target...", opts.print);
         clean_target()?;
@@ -23,7 +31,7 @@ pub fn collect_ir<'a>(opts: &Opts) -> Result<(PathBuf, Vec<String>), String> {
         "compiling with bitcode, this may take a while...",
         opts.print,
     );
-    let targets = compile_with_bc(opts)?;
+    let (targets, use_cxx, use_bindgen, use_cbindgen) = compile_with_bc(opts)?;
 
     if targets.is_empty() {
         return Err("No target to build, and thus no check.".to_string());
@@ -35,7 +43,13 @@ pub fn collect_ir<'a>(opts: &Opts) -> Result<(PathBuf, Vec<String>), String> {
     let bitcode_path = generate_llvm_bc(opts, &targets)?;
 
     // return the path to the bitcode file and the targets.
-    Ok((bitcode_path, targets))
+    Ok(CollectOverriew {
+        bitcode_path,
+        targets,
+        use_cxx,
+        use_bindgen,
+        use_cbindgen,
+    })
 }
 
 #[allow(unused)]
@@ -59,9 +73,10 @@ pub fn clean_target() -> Result<(), String> {
     Ok(())
 }
 /// Compile the whole crates and generate LLVM bitcode.
-fn compile_with_bc(opts: &Opts) -> Result<Vec<String>, String> {
+fn compile_with_bc(opts: &Opts) -> Result<(Vec<String>, bool, bool, bool), String> {
     let meta = crate_meta()?;
     let mut names = Vec::new();
+    let (mut use_cxx, mut use_bindgen, mut use_cbindgen) = (false, false, false);
 
     for member in meta.workspace_packages() {
         utils::info_prompt(
@@ -70,6 +85,16 @@ fn compile_with_bc(opts: &Opts) -> Result<Vec<String>, String> {
             opts.print,
         );
 
+        // check deps usage
+        for dep in &member.dependencies {
+            match dep.name.as_str() {
+                "cxx" => use_cxx = true,
+                "bindgen" => use_bindgen = true,
+                "cbindgen" => use_cbindgen = true,
+                _ => continue,
+            }
+        }
+
         let manifest_path = PathBuf::from(&member.manifest_path);
         let member_root = manifest_path
             .parent()
@@ -77,7 +102,6 @@ fn compile_with_bc(opts: &Opts) -> Result<Vec<String>, String> {
 
         for target in &member.targets {
             // let mut args = std::env::args().skip(2);
-
             let kind = target
                 .kind
                 .get(0)
@@ -144,7 +168,7 @@ fn compile_with_bc(opts: &Opts) -> Result<Vec<String>, String> {
         }
     }
 
-    Ok(names)
+    Ok((names, use_cxx, use_bindgen, use_cbindgen))
 }
 
 /// Find all the LLVM bitcodes and gather their pathes in a file.

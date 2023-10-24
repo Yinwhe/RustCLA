@@ -32,6 +32,8 @@ pub fn run() {
         .unwrap(),
     ));
 
+    prebuild(Arc::clone(&conn));
+
     let undownloaded_crates = find_undownloaded_crates(Arc::clone(&conn));
     let workers = THREADNUM;
 
@@ -142,18 +144,18 @@ fn deal_with_crate(store_path: &str, name: &str, version: &str) -> io::Result<Ou
         .output()
 }
 
-fn find_undownloaded_crates(conn: Arc<Mutex<Client>>) -> Vec<CrateInfo> {
+fn prebuild(conn: Arc<Mutex<Client>>) {
     conn.lock()
         .unwrap()
         .query(
             r#"CREATE TABLE IF NOT EXISTS public.download_status
-            (
-                crate_id INT,
-                version_id INT,
-                crate_name VARCHAR,
-                version_num VARCHAR,
-                status VARCHAR
-            )"#,
+        (
+            crate_id INT,
+            version_id INT,
+            crate_name VARCHAR,
+            version_num VARCHAR,
+            status VARCHAR
+        )"#,
             &[],
         )
         .unwrap();
@@ -187,7 +189,9 @@ fn find_undownloaded_crates(conn: Arc<Mutex<Client>>) -> Vec<CrateInfo> {
         remove_dir_all(CRATESDIR).unwrap_or_default(); // Delete tmp crates file directory
         create_dir(Path::new(CRATESDIR)).unwrap_or_default(); // Crates file directory
     }
+}
 
+fn find_undownloaded_crates(conn: Arc<Mutex<Client>>) -> Vec<CrateInfo> {
     let query = format!("SELECT * FROM download_status WHERE status = 'undownloaded'");
     let row = conn.lock().unwrap().query(&query, &[]).unwrap();
     row.iter()

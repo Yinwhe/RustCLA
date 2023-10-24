@@ -1,17 +1,22 @@
-use std::env::current_dir;
+use std::env::{current_dir, set_current_dir};
+use std::fs::remove_dir_all;
 use std::panic::catch_unwind;
+use std::path::PathBuf;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::{panic, thread};
 
+use abi_checker::{lib, AnalysisOverriew, CollectOverriew};
 use crossbeam::channel;
-use log::{debug, error, info, warn};
-use once_cell::sync::Lazy;
+use log::{error, info, warn};
 use postgres::{Client, NoTls};
-use regex::Regex;
+
+const ON_PROCESS: &str = "/home/ubuntu/Workspace/RustCLA/Pipeline/crate_downloader/on_process";
+
+/// func warnnings, func errors, struct warnnings, struct errors, detect rust ir, detect cxx ir
 
 struct VersionInfo {
-    crate_id: i32,
+    _crate_id: i32,
     version_id: i32,
     crate_name: String,
     version_num: String,
@@ -28,6 +33,9 @@ pub fn run_ffi(workers: usize, status: &str) {
         .unwrap(),
     ));
 
+    // do_clean(conn);
+    // return ;
+
     println!("DB Prebuild...");
     prebuild(Arc::clone(&conn));
 
@@ -41,6 +49,7 @@ pub fn run_ffi(workers: usize, status: &str) {
         let conn = Arc::clone(&conn);
         let rx = rx.clone();
 
+        let root_path = PathBuf::from(ON_PROCESS);
         handles.push(thread::spawn(move || {
             while let Ok(versions) = rx.recv() {
                 for v in versions {
@@ -59,16 +68,20 @@ pub fn run_ffi(workers: usize, status: &str) {
                     });
                     if catch_unwind(|| {
                         // MAIN OPERATION: ABICHECKER
-                        match abichecker(&v) {
-                            Ok(issue_found) => {
+                        info!("Thread {}: check version {} start", i, v.version_id);
+                        match abichecker(&v, &root_path) {
+                            Ok((cview, aview)) => {
                                 info!(
-                                    "check version {} done, {} issues found",
-                                    v.version_id, issue_found
+                                    "Thread {}: check version {} done, {:?} issues found",
+                                    i, v.version_id, aview,
                                 );
-                                store_success(Arc::clone(&conn), v.version_id, issue_found);
+                                store_success(Arc::clone(&conn), v.version_id, (cview, aview));
                             }
                             Err(e) => {
-                                warn!("check version {} fails, due to error: {}", v.version_id, e);
+                                warn!(
+                                    "Thread {}: check version {} fails, due to error: {}",
+                                    i, v.version_id, e
+                                );
                                 store_error(Arc::clone(&conn), v.version_id, format!("{:?}", e));
                             }
                         }
@@ -88,7 +101,7 @@ pub fn run_ffi(workers: usize, status: &str) {
         let conn = Arc::clone(&conn);
         let query = format!(
             r#"SELECT crate_id,version_id,crate_name,version_num FROM ffi_versions WHERE version_id in (
-                SELECT version_id FROM abicheck_status WHERE status='{}' ORDER BY version_id asc LIMIT {}
+                SELECT version_id FROM abicheck_status WHERE status='{}' ORDER BY version_id desc LIMIT {}
                 )"#,
             status, THREAD_DATA_SIZE
         );
@@ -100,7 +113,7 @@ pub fn run_ffi(workers: usize, status: &str) {
         } else {
             let query = format!(
                 r#"UPDATE abicheck_status SET status='processing' WHERE version_id IN (
-                    SELECT version_id FROM abicheck_status WHERE status='{}' ORDER BY version_id asc LIMIT {}
+                    SELECT version_id FROM abicheck_status WHERE status='{}' ORDER BY version_id desc LIMIT {}
                 )"#,
                 status, THREAD_DATA_SIZE
             );
@@ -110,7 +123,7 @@ pub fn run_ffi(workers: usize, status: &str) {
             let versions: Vec<VersionInfo> = rows
                 .iter()
                 .map(|row| VersionInfo {
-                    crate_id: row.get(0),
+                    _crate_id: row.get(0),
                     version_id: row.get(1),
                     crate_name: row.get(2),
                     version_num: row.get(3),
@@ -150,11 +163,79 @@ fn prebuild(conn: Arc<Mutex<Client>>) {
         .query(
             r#"CREATE TABLE IF NOT EXISTS abicheck_issues(
             version_id INTEGER,
-            issue_found VARCHAR
+            func_warns INTEGER,
+            func_errors INTEGER,
+            struct_warns INTEGER,
+            struct_errors INTEGER,
+            has_rust_ir BOOL,
+            has_cxx_ir BOOL,
+            use_cxx BOOL,
+            use_bindgen BOOL,
+            use_cbindgen BOOL
         );"#,
             &[],
         )
         .unwrap_or_default();
+
+    // Check if table is empty
+    if conn
+        .lock()
+        .unwrap()
+        .query("SELECT * FROM abicheck_status LIMIT 1", &[])
+        .unwrap()
+        .first()
+        .is_none()
+    {
+        // Empty: Select newest ffi_versions and insert into download_status
+        conn.lock()
+            .unwrap()
+            .query(
+                "
+                INSERT INTO abicheck_status
+                SELECT version_id, 'undone'
+                FROM download_status
+                ",
+                &[],
+            )
+            .unwrap();
+    } else {
+        conn.lock()
+            .unwrap()
+            .query(
+                &format!(
+                    r#"UPDATE abicheck_status SET status='undone' WHERE status = 'processing'"#
+                ),
+                &[],
+            )
+            .unwrap();
+    }
+
+    // Clear all envs but PATH
+    std::env::vars().for_each(|(key, _)| {
+        if key != "PATH" {
+            std::env::remove_var(key);
+        }
+    });
+
+    let path = current_dir()
+        .expect("Cannot get current directory")
+        .parent()
+        .expect("Cannot get parent directory")
+        .join("crate_downloader")
+        .join("on_process");
+
+    let mut cmd = Command::new("rustup");
+    cmd.args([
+        "override",
+        "set",
+        "nightly-2022-08-01-x86_64-unknown-linux-gnu",
+    ])
+    .current_dir(path);
+
+    let output = cmd.output().expect("Cannot run rustup");
+    if !output.status.success() {
+        panic!("Cannot set rustup override");
+    }
 }
 
 fn store_error(conn: Arc<Mutex<Client>>, version: i32, message: String) {
@@ -163,7 +244,11 @@ fn store_error(conn: Arc<Mutex<Client>>, version: i32, message: String) {
     update_process_details(Arc::clone(&conn), version, &message);
 }
 
-fn store_success(conn: Arc<Mutex<Client>>, version: i32, issue_found: usize) {
+fn store_success(
+    conn: Arc<Mutex<Client>>,
+    version: i32,
+    issue_found: (CollectOverriew, AnalysisOverriew),
+) {
     update_process_status(Arc::clone(&conn), version, "done");
     update_issue_found(Arc::clone(&conn), version, issue_found);
 }
@@ -195,67 +280,69 @@ fn update_process_details(conn: Arc<Mutex<Client>>, version_id: i32, details: &s
         .expect("Update process status fails");
 }
 
-fn update_issue_found(conn: Arc<Mutex<Client>>, version_id: i32, issue_found: usize) {
+fn update_issue_found(
+    conn: Arc<Mutex<Client>>,
+    version_id: i32,
+    issue_found: (CollectOverriew, AnalysisOverriew),
+) {
     conn.lock()
         .unwrap()
         .query(
             &format!(
-                "INSERT INTO abicheck_issues (version_id, issue_found) VALUES ('{}', '{}');",
-                version_id, issue_found
+                "INSERT INTO abicheck_issues (version_id, func_warns, func_errors, struct_warns, struct_errors, has_rust_ir, has_cxx_ir, use_cxx, use_bindgen, use_cbindgen)
+                VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}');",
+                version_id, issue_found.1.func_warns, issue_found.1.func_errors, issue_found.1.struct_warns, issue_found.1.struct_errors, issue_found.1.has_rust_modules, issue_found.1.has_cxx_modules, issue_found.0.use_cxx, issue_found.0.use_bindgen, issue_found.0.use_cbindgen
             ),
             &[],
         )
         .expect("Update issue found fails");
 }
 
-fn abichecker(version: &VersionInfo) -> Result<usize, String> {
-    let path = current_dir().expect("Cannot get current directory");
-    let path = path
-        .parent()
-        .expect("Cannot get parent directory")
-        .join("crate_downloader")
-        .join("on_process")
+fn abichecker(
+    version: &VersionInfo,
+    root_path: &PathBuf,
+) -> Result<(CollectOverriew, AnalysisOverriew), String> {
+    let root = root_path
         .join(&version.crate_name)
         .join(&format!("{}-{}", version.crate_name, version.version_num));
+    let target = root.join("target");
 
-    let mut cmd = Command::new("abi_checker");
+    set_current_dir(root).map_err(|e| e.to_string())?;
+    let res = abi_checker::lib();
 
-    cmd.env(
-        "RUSTUP_TOOLCHAIN",
-        "nightly-2022-08-01-x86_64-unknown-linux-gnu",
-    )
-    .current_dir(path);
+    remove_dir_all(target).unwrap_or_default();
 
-    let output = cmd.output();
+    return res;
+}
 
-    // warn!("{:?}", output);
+pub fn do_clean(conn: Arc<Mutex<Client>>) {
+    let query = format!(
+        r#"SELECT crate_id,version_id,crate_name,version_num FROM ffi_versions WHERE version_id in (
+            SELECT version_id FROM abicheck_status WHERE status != 'undone'
+        );"#,
+    );
 
-    let output = output.expect("Cannot run abi_checker");
-    if output.status.success() {
-        let output = String::from_utf8(output.stdout).unwrap();
-        static RE1: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"(\d+) errors found").unwrap());
-        let issue_found = RE1
-            .captures(&output)
-            .expect("Cannot find issue found")
-            .get(1)
-            .expect("Cannot get issue found")
-            .as_str()
-            .parse::<usize>()
-            .expect("Cannot parse issue found");
+    let rows = conn.lock().unwrap().query(&query, &[]).unwrap();
 
-        return Ok(issue_found);
-    } else {
-        static RE2: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"(collect|resolve) ir failed, due to: (.+)").unwrap());
-        let output = String::from_utf8(output.stdout).unwrap();
-        let err_message = RE2
-            .captures(&output)
-            .expect("Cannot find error message")
-            .get(2)
-            .expect("Cannot get error message")
-            .as_str();
+    let versions: Vec<VersionInfo> = rows
+        .iter()
+        .map(|row| VersionInfo {
+            _crate_id: row.get(0),
+            version_id: row.get(1),
+            crate_name: row.get(2),
+            version_num: row.get(3),
+        })
+        .collect();
 
-        return Err(err_message.to_string());
+    for version in versions {
+        let target = PathBuf::from(ON_PROCESS)
+            .join(&version.crate_name)
+            .join(&format!("{}-{}", version.crate_name, version.version_num))
+            .join("target");
+
+        info!("Cleaning version {}...", version.version_id);
+        remove_dir_all(target).unwrap_or_default();
     }
+
+    info!("Cleaning done!");
 }

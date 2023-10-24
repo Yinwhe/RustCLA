@@ -12,8 +12,18 @@ use super::analysis_funcs::analysis_funcs;
 use super::analysis_structs::analysis_structs;
 use super::ir_info::IRInfo;
 
+#[derive(Debug)]
+pub struct AnalysisOverriew {
+    pub func_warns: usize,
+    pub func_errors: usize,
+    pub struct_warns: usize,
+    pub struct_errors: usize,
+    pub has_rust_modules: bool,
+    pub has_cxx_modules: bool,
+}
+
 /// Top analysis function.
-pub fn analysis_ir(opts: Opts) -> Result<(usize, usize, usize, usize, bool, bool), String> {
+pub fn analysis_ir(opts: Opts) -> Result<AnalysisOverriew, String> {
     let cx = Context::create();
 
     let path = unsafe { opts.bitcode_path.assume_init() };
@@ -50,14 +60,14 @@ pub fn analysis_ir(opts: Opts) -> Result<(usize, usize, usize, usize, bool, bool
         opts.print,
     );
 
-    Ok((
+    Ok(AnalysisOverriew {
         func_warns,
         func_errors,
         struct_warns,
         struct_errors,
-        ir_info.has_rust_modules(),
-        ir_info.has_cxx_modules(),
-    ))
+        has_rust_modules: ir_info.has_rust_modules(),
+        has_cxx_modules: ir_info.has_cxx_modules(),
+    })
 }
 
 /// Resolve the IR from the bitcode file and collect all modules.

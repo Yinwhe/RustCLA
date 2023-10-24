@@ -1,3 +1,4 @@
 on_process
 target
 Cargo.lock
+*.log
