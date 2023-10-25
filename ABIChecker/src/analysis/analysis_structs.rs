@@ -379,36 +379,56 @@ fn array_normal(a: &AField, b: &AField) -> AResults {
 }
 
 fn array_array(a: &AField, b: &AField) -> AResults {
-    match (a.get_type(), b.get_type()) {
-        (AType::ArrayType(r, _), AType::ArrayType(c, _)) => {
-            // possiblly padding, so only warnning.
-            if let (AType::IntType(ri), AType::IntType(ci)) = (r.as_ref(), c.as_ref()) {
-                let mut res = AResults::new();
-                if ri != ci {
-                    res.add_struct_issue(
-                        a.get_range(),
-                        b.get_range(),
-                        StructMismatch::TypeMismatch,
-                        AResultLevel::Error,
-                    );
-                };
+    let a_padding_ty = a.can_be_padding().map(|inner| inner.0);
+    let b_padding_ty = b.can_be_padding().map(|inner| inner.0);
 
-                return res;
-            }
+    let mut res = AResults::new();
 
-            let r = AField::temp_field(*r, a.get_range());
-            let c = AField::temp_field(*c, b.get_range());
-
-            return deep_check(&r, &c);
+    // both can be paddings, so it could be.
+    if let (Some(aty), Some(bty)) = (&a_padding_ty,&b_padding_ty) {
+        if aty != bty {
+            res.add_struct_issue(
+                a.get_range(),
+                b.get_range(),
+                StructMismatch::IsPadding,
+                AResultLevel::Warning,
+            );
         }
-        _ => unreachable!(),
+
+        return res;
     }
+
+    // or only on can be, thus maybe it's opaque
+    if (a_padding_ty.is_some() as i8 ^ b_padding_ty.is_some() as i8) == 1 {
+        res.add_struct_issue(
+            a.get_range(),
+            b.get_range(),
+            StructMismatch::IsOpaque,
+            AResultLevel::Warning,
+        );
+
+        return res;
+    }
+
+    // or
+    return deep_check(a, b);
 }
 
 fn array_struct(a: &AField, b: &AField) -> AResults {
     let mut res = AResults::new();
 
     let st = b.to_struct().expect("Fatal, should be a struct");
+
+    if a.can_be_padding().is_some() {
+        res.add_struct_issue(
+            a.get_range(),
+            b.get_range(),
+            StructMismatch::IsOpaque,
+            AResultLevel::Warning,
+        );
+
+        return res;
+    }
 
     if let Some(b) = st.get_inner_one() {
         return deep_check(a, b);
@@ -448,6 +468,17 @@ fn struct_array(a: &AField, b: &AField) -> AResults {
 
     let st = a.to_struct().expect("Fatal, should be a struct");
 
+    if b.can_be_padding().is_some() {
+        res.add_struct_issue(
+            a.get_range(),
+            b.get_range(),
+            StructMismatch::IsOpaque,
+            AResultLevel::Warning,
+        );
+
+        return res;
+    }
+
     if let Some(a) = st.get_inner_one() {
         return deep_check(a, b);
     } else {
@@ -475,6 +506,8 @@ fn show_error(res: &AResult, level: &AResultLevel, _rst: &AStruct, _cst: &AStruc
             let details = match mis {
                 StructMismatch::SizeMismatch => "size mismatch",
                 StructMismatch::TypeMismatch => "type mismatch",
+                StructMismatch::IsPadding => "possibly padding",
+                StructMismatch::IsOpaque => "possibly opaque",
             };
 
             match level {

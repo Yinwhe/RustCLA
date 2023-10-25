@@ -30,6 +30,8 @@ pub enum SigMismatch {
 pub enum StructMismatch {
     SizeMismatch,
     TypeMismatch,
+    IsPadding,
+    IsOpaque,
 }
 
 impl AResults {
@@ -88,13 +90,15 @@ impl AResult {
 }
 
 impl AResultLevel {
+    #[allow(unused)]
     pub fn is_warning(&self) -> bool {
         match self {
             AResultLevel::Warning => true,
             _ => false,
         }
     }
-
+    
+    #[allow(unused)]
     pub fn is_error(&self) -> bool {
         match self {
             AResultLevel::Error => true,

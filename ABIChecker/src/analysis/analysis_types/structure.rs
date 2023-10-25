@@ -201,14 +201,14 @@ impl<'ctx> AField<'ctx> {
         self.ty.cmp_number()
     }
 
-    pub fn can_be_padding(&self) -> bool {
-        if let AType::ArrayType(ty, _) = &self.ty {
-            if let AType::IntType(_) = ty.as_ref() {
-                return true;
+    pub fn can_be_padding(&self) -> Option<(String, u32)> {
+        if let AType::ArrayType(ty, len) = &self.ty {
+            if let AType::IntType(ty) = ty.as_ref() {
+                return Some((ty.to_owned(), len.to_owned()));
             }
         }
 
-        false
+        None
     }
 
     pub fn to_struct(&self) -> Option<&AStruct> {
