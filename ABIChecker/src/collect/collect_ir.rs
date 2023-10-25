@@ -159,8 +159,8 @@ fn compile_with_bc(opts: &Opts) -> Result<(Vec<String>, bool, bool, bool), Strin
 
             if !output.status.success() {
                 return Err(format!(
-                    "cargo failed with exit code {:?}",
-                    output.status.code(),
+                    "cargo failed with exit code {:?}, due to {}",
+                    output.status.code(), String::from_utf8_lossy(&output.stderr)
                 ));
             }
 
