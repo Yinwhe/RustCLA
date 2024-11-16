@@ -3,6 +3,8 @@ use inkwell::targets::{TargetData, TargetMachine};
 use inkwell::{module::Module, values::FunctionValue};
 
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::Write;
 
 use super::structure::ATypeLazyStruct;
 

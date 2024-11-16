@@ -1,0 +1,21 @@
+[package]
+name = "abi_checker"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+inkwell = { version = "0.1.0", features = ["llvm14-0"] }
+ansi_term = "0.12.1"
+lazy_static = "1.4.0"
+log = "0.4.17"
+pretty_env_logger = "0.4.0"
+clap = { version = "4.2.7", features = ["derive"] }
+walkdir = "2.3.3"
+infer = "0.15.0"
+cargo_metadata = "0.17.0"
+rustc_version = "0.4.0"
+
+[profile.dev]
+panic = "unwind"

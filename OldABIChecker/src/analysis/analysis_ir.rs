@@ -1,4 +1,6 @@
-use std::path::PathBuf;
+use std::fs::File;
+use std::io::{prelude::*, BufReader};
+use std::path::{Path, PathBuf};
 
 use inkwell::context::Context;
 use inkwell::module::Module;
@@ -24,10 +26,11 @@ pub struct AnalysisOverriew {
 pub fn analysis_ir(opts: Opts) -> Result<AnalysisOverriew, String> {
     let cx = Context::create();
 
-    let target_machine = unsafe { opts.target_machine.assume_init() };
+    let path = unsafe { opts.bitcode_path.assume_init() };
+    let target_machin = unsafe { opts.target_machin.assume_init() };
 
-    utils::info_prompt("Analysis IR", "forming ir information db...", true);
-    let mut ir_info = resolve_from_bc(opts.c_ir_file, opts.r_ir_file, &cx, target_machine)?;
+    utils::info_prompt("Analysis IR", "forming ir information db...", opts.print);
+    let mut ir_info = resolve_from_bc(path, &cx, target_machin)?;
     ir_info.get_ffi_funcs()?;
 
     let ffi_funcs = ir_info.ffi_functions();
@@ -35,9 +38,9 @@ pub fn analysis_ir(opts: Opts) -> Result<AnalysisOverriew, String> {
     utils::info_prompt(
         "Analysis IR",
         &format!("checking ffi functions: {:?}", ffi_funcs),
-        true,
+        opts.print,
     );
-    let (func_warns, func_errors) = analysis_funcs(ffi_funcs, &mut ir_info, true)?;
+    let (func_warns, func_errors) = analysis_funcs(ffi_funcs, &mut ir_info, opts.print)?;
 
     let ffi_structs = ir_info.ffi_structs();
     let ffi_struct_names = ffi_structs
@@ -47,14 +50,14 @@ pub fn analysis_ir(opts: Opts) -> Result<AnalysisOverriew, String> {
     utils::info_prompt(
         "Analysis IR",
         &format!("checking ffi structs: {:?}", ffi_struct_names),
-        true,
+        opts.print,
     );
-    let (struct_warns, struct_errors) = analysis_structs(ffi_structs, &mut ir_info, true)?;
+    let (struct_warns, struct_errors) = analysis_structs(ffi_structs, &mut ir_info, opts.print)?;
 
     utils::info_prompt(
         "Summarize",
         &format!("{} errors found", func_errors + struct_errors),
-        true,
+        opts.print,
     );
 
     Ok(AnalysisOverriew {
@@ -69,22 +72,40 @@ pub fn analysis_ir(opts: Opts) -> Result<AnalysisOverriew, String> {
 
 /// Resolve the IR from the bitcode file and collect all modules.
 fn resolve_from_bc<'ctx>(
-    c_path: PathBuf,
-    r_path: PathBuf,
+    path: PathBuf,
     cx: &'ctx Context,
-    target_machinee: TargetMachine,
+    target_machine: TargetMachine,
 ) -> Result<IRInfo<'ctx>, String> {
-    let c_module = Module::parse_bitcode_from_path(c_path, cx).map_err(|e| format!("{}", e))?;
-    let r_module = Module::parse_bitcode_from_path(r_path, cx).map_err(|e| format!("{}", e))?;
+    let file = File::open(path).map_err(|e| format!("{}", e))?;
+    let lines = BufReader::new(file).lines();
 
     // let cx = Context::create();
     let mut c_modules = Vec::new();
     let mut r_modules = Vec::new();
 
-    c_modules.push(c_module);
-    r_modules.push(r_module);
+    // read each bitcode file and collect the IR
+    for line in lines {
+        let line = line.map_err(|e| format!("{}", e))?;
+        let path = Path::new(&line);
+        let module = Module::parse_bitcode_from_path(path, cx).map_err(|e| format!("{}", e))?;
 
-    let ir_info = IRInfo::new(r_modules, c_modules, target_machinee);
+        // Judge whether it is a C module or a Rust module
+        let file_name = path
+            .file_name()
+            .ok_or("Invalid file name")?
+            .to_str()
+            .ok_or("Invalid file name")?;
+        if file_name.ends_with(".bc") {
+            r_modules.push(module)
+            // or it's just dependencies crates
+        } else if file_name.ends_with(".o") {
+            c_modules.push(module);
+        } else {
+            panic!("Unsupported file type: {}", file_name);
+        }
+    }
+
+    let ir_info = IRInfo::new(r_modules, c_modules, target_machine);
 
     Ok(ir_info)
 }
